@@ -1,219 +1,127 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Button } from "@/components/ui/button";
-import { RefreshCw, Clock } from "lucide-react";
-import { getAllSleepoverRequests, updateSleepoverStatus } from '@/lib/firestore';
-import { toast } from 'sonner';
+import { useEffect, useState } from 'react';
+import { getAllSleepoverRequests, getTodaySleepoverRequests, updateSleepoverStatus } from '@/lib/firestore';
+import { SleepoverRequest } from '@/lib/firestore';
 import { format } from 'date-fns';
-import { RequestActions } from '@/components/admin/RequestActions';
-import { RefreshButton } from '@/components/ui/refresh-button';
 
-export default function SleepoversPage() {
-  const [sleepoverRequests, setSleepoverRequests] = useState<any[]>([]);
+export default function AdminSleepoversPage() {
+  const [requests, setRequests] = useState<SleepoverRequest[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [showHistory, setShowHistory] = useState(false);
 
   useEffect(() => {
-    fetchSleepoverRequests();
-  }, []);
+    fetchRequests();
+  }, [showHistory]);
 
-  const fetchSleepoverRequests = async () => {
+  const fetchRequests = async () => {
     try {
       setLoading(true);
-      const requests = await getAllSleepoverRequests();
-      setSleepoverRequests(requests);
-    } catch (error) {
-      console.error('Error fetching sleepover requests:', error);
-      toast.error('Failed to fetch sleepover requests');
+      const data = showHistory 
+        ? await getAllSleepoverRequests()
+        : await getTodaySleepoverRequests();
+      setRequests(data);
+    } catch (err) {
+      setError('Failed to fetch sleepover requests');
+      console.error(err);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleStatusUpdate = async (id: string, status: string, adminResponse?: string) => {
+  const handleStatusUpdate = async (requestId: string, status: 'approved' | 'rejected', response?: string) => {
     try {
-      await updateSleepoverStatus(id, status as any, adminResponse);
-      await fetchSleepoverRequests();
-      toast.success('Sleepover request status updated successfully');
-    } catch (error) {
-      console.error('Error updating sleepover request status:', error);
-      toast.error('Failed to update sleepover request status');
+      await updateSleepoverStatus(requestId, status, response);
+      fetchRequests(); // Refresh the list
+    } catch (err) {
+      console.error('Error updating request status:', err);
     }
   };
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
-      </div>
-    );
-  }
+  if (loading) return <div>Loading...</div>;
+  if (error) return <div>Error: {error}</div>;
 
   return (
-    <div className="container mx-auto py-6">
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle>Sleepover Requests</CardTitle>
-          <RefreshButton onClick={fetchSleepoverRequests} loading={loading} />
-        </CardHeader>
-        <CardContent>
-          <Tabs defaultValue="all">
-            <TabsList>
-              <TabsTrigger value="all">All Requests</TabsTrigger>
-              <TabsTrigger value="pending">Pending</TabsTrigger>
-              <TabsTrigger value="approved">Approved</TabsTrigger>
-              <TabsTrigger value="rejected">Rejected</TabsTrigger>
-            </TabsList>
-            <TabsContent value="all" className="space-y-4">
-              {sleepoverRequests.map((request) => (
-                <Card key={request.id}>
-                  <CardContent className="p-4">
-                    <div className="flex items-center justify-between">
-                      <div className="space-y-1">
-                        <h3 className="font-medium">Sleepover Request</h3>
-                        <p className="text-sm text-muted-foreground">
-                          Guest: {request.guestName}
-                        </p>
-                        <p className="text-sm text-muted-foreground">
-                          Phone: {request.guestPhone}
-                        </p>
-                        <p className="text-sm text-muted-foreground">
-                          Room: {request.roomNumber}
-                        </p>
-                        <p className="text-sm text-muted-foreground">
-                          Period: {format(request.startDate, 'PPP')} - {format(request.endDate, 'PPP')}
-                        </p>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Badge variant={
-                          request.status === 'approved' ? 'default' :
-                          request.status === 'pending' ? 'secondary' :
-                          'destructive'
-                        }>
-                          {request.status}
-                        </Badge>
-                        <RequestActions
-                          type="sleepover"
-                          data={request}
-                          onStatusUpdate={handleStatusUpdate}
-                        />
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </TabsContent>
-            <TabsContent value="pending">
-              {sleepoverRequests
-                .filter((request) => request.status === 'pending')
-                .map((request) => (
-                  <Card key={request.id}>
-                    <CardContent className="p-4">
-                      <div className="flex items-center justify-between">
-                        <div className="space-y-1">
-                          <h3 className="font-medium">Sleepover Request</h3>
-                          <p className="text-sm text-muted-foreground">
-                            Guest: {request.guestName}
-                          </p>
-                          <p className="text-sm text-muted-foreground">
-                            Phone: {request.guestPhone}
-                          </p>
-                          <p className="text-sm text-muted-foreground">
-                            Room: {request.roomNumber}
-                          </p>
-                          <p className="text-sm text-muted-foreground">
-                            Period: {format(request.startDate, 'PPP')} - {format(request.endDate, 'PPP')}
-                          </p>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <Badge variant="secondary">pending</Badge>
-                          <RequestActions
-                            type="sleepover"
-                            data={request}
-                            onStatusUpdate={handleStatusUpdate}
-                          />
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-            </TabsContent>
-            <TabsContent value="approved">
-              {sleepoverRequests
-                .filter((request) => request.status === 'approved')
-                .map((request) => (
-                  <Card key={request.id}>
-                    <CardContent className="p-4">
-                      <div className="flex items-center justify-between">
-                        <div className="space-y-1">
-                          <h3 className="font-medium">Sleepover Request</h3>
-                          <p className="text-sm text-muted-foreground">
-                            Guest: {request.guestName}
-                          </p>
-                          <p className="text-sm text-muted-foreground">
-                            Phone: {request.guestPhone}
-                          </p>
-                          <p className="text-sm text-muted-foreground">
-                            Room: {request.roomNumber}
-                          </p>
-                          <p className="text-sm text-muted-foreground">
-                            Period: {format(request.startDate, 'PPP')} - {format(request.endDate, 'PPP')}
-                          </p>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <Badge>approved</Badge>
-                          <RequestActions
-                            type="sleepover"
-                            data={request}
-                            onStatusUpdate={handleStatusUpdate}
-                          />
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-            </TabsContent>
-            <TabsContent value="rejected">
-              {sleepoverRequests
-                .filter((request) => request.status === 'rejected')
-                .map((request) => (
-                  <Card key={request.id}>
-                    <CardContent className="p-4">
-                      <div className="flex items-center justify-between">
-                        <div className="space-y-1">
-                          <h3 className="font-medium">Sleepover Request</h3>
-                          <p className="text-sm text-muted-foreground">
-                            Guest: {request.guestName}
-                          </p>
-                          <p className="text-sm text-muted-foreground">
-                            Phone: {request.guestPhone}
-                          </p>
-                          <p className="text-sm text-muted-foreground">
-                            Room: {request.roomNumber}
-                          </p>
-                          <p className="text-sm text-muted-foreground">
-                            Period: {format(request.startDate, 'PPP')} - {format(request.endDate, 'PPP')}
-                          </p>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <Badge variant="destructive">rejected</Badge>
-                          <RequestActions
-                            type="sleepover"
-                            data={request}
-                            onStatusUpdate={handleStatusUpdate}
-                          />
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-            </TabsContent>
-          </Tabs>
-        </CardContent>
-      </Card>
+    <div className="container mx-auto px-4 py-8">
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-2xl font-bold">Sleepover Requests</h1>
+        <button
+          onClick={() => setShowHistory(!showHistory)}
+          className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
+        >
+          {showHistory ? 'Show Today\'s Requests' : 'Show History'}
+        </button>
+      </div>
+
+      <div className="grid gap-4">
+        {requests.map((request) => (
+          <div key={request.id} className="border rounded-lg p-4 shadow-sm">
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <p className="font-semibold">Tenant Code</p>
+                <p>{request.tenantCode}</p>
+              </div>
+              <div>
+                <p className="font-semibold">Guest Name</p>
+                <p>{request.guestName} {request.guestSurname}</p>
+              </div>
+              <div>
+                <p className="font-semibold">Guest Number</p>
+                <p>{request.guestPhoneNumber}</p>
+              </div>
+              <div>
+                <p className="font-semibold">Room Number</p>
+                <p>{request.roomNumber}</p>
+              </div>
+              <div>
+                <p className="font-semibold">Duration of Stay</p>
+                <p>{request.durationOfStay}</p>
+              </div>
+              <div>
+                <p className="font-semibold">Status</p>
+                <p className={`font-semibold ${
+                  request.status === 'approved' ? 'text-green-600' :
+                  request.status === 'rejected' ? 'text-red-600' :
+                  'text-yellow-600'
+                }`}>
+                  {request.status.charAt(0).toUpperCase() + request.status.slice(1)}
+                </p>
+              </div>
+            </div>
+
+            {request.status === 'pending' && (
+              <div className="mt-4 flex gap-2">
+                <button
+                  onClick={() => handleStatusUpdate(request.id, 'approved')}
+                  className="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600"
+                >
+                  Approve
+                </button>
+                <button
+                  onClick={() => handleStatusUpdate(request.id, 'rejected')}
+                  className="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600"
+                >
+                  Reject
+                </button>
+              </div>
+            )}
+
+            {request.adminResponse && (
+              <div className="mt-4">
+                <p className="font-semibold">Admin Response:</p>
+                <p>{request.adminResponse}</p>
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+
+      {requests.length === 0 && (
+        <div className="text-center text-gray-500 mt-8">
+          No {showHistory ? 'historical' : 'today\'s'} sleepover requests found.
+        </div>
+      )}
     </div>
   );
 } 
