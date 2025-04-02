@@ -1,125 +1,249 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { getAllSleepoverRequests, getTodaySleepoverRequests, updateSleepoverStatus } from '@/lib/firestore';
-import { SleepoverRequest } from '@/lib/firestore';
+import { useState, useEffect } from 'react';
+import { collection, query, orderBy, getDocs, updateDoc, doc, serverTimestamp } from 'firebase/firestore';
+import { db } from '@/lib/firebase';
+import { useAuth } from '@/lib/auth';
 import { format } from 'date-fns';
+import { toast } from 'react-hot-toast';
+import { Timestamp } from 'firebase/firestore';
+
+interface SleepoverRequest {
+  id: string;
+  tenantCode: string;
+  roomNumber: string;
+  guestName: string;
+  guestSurname: string;
+  guestPhone: string;
+  startDate: Date;
+  endDate: Date;
+  additionalGuests: Array<{
+    name: string;
+    phone: string;
+  }>;
+  status: 'pending' | 'approved' | 'rejected';
+  createdAt: Date;
+  updatedAt: Date;
+  adminResponse?: string;
+}
 
 export default function AdminSleepoversPage() {
   const [requests, setRequests] = useState<SleepoverRequest[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [showHistory, setShowHistory] = useState(false);
+  const [selectedRequest, setSelectedRequest] = useState<SleepoverRequest | null>(null);
+  const [adminResponse, setAdminResponse] = useState('');
+  const { user } = useAuth();
 
   useEffect(() => {
-    fetchRequests();
-  }, [showHistory]);
+    if (user) {
+      fetchRequests();
+    }
+  }, [user]);
 
   const fetchRequests = async () => {
     try {
       setLoading(true);
-      const data = showHistory 
-        ? await getAllSleepoverRequests()
-        : await getTodaySleepoverRequests();
-      setRequests(data);
-    } catch (err) {
+      const q = query(collection(db, 'sleepover_requests'), orderBy('createdAt', 'desc'));
+      const querySnapshot = await getDocs(q);
+      const requestsData = querySnapshot.docs.map(doc => {
+        const data = doc.data();
+        
+        // Helper function to safely convert Firestore timestamp to Date
+        const toDate = (timestamp: any): Date => {
+          if (!timestamp) return new Date();
+          if (timestamp instanceof Timestamp) return timestamp.toDate();
+          if (timestamp instanceof Date) return timestamp;
+          return new Date(timestamp);
+        };
+
+        return {
+          id: doc.id,
+          ...data,
+          startDate: toDate(data.startDate),
+          endDate: toDate(data.endDate),
+          createdAt: toDate(data.createdAt),
+          updatedAt: toDate(data.updatedAt)
+        };
+      });
+      setRequests(requestsData);
+    } catch (error) {
+      console.error('Error fetching sleepover requests:', error);
       setError('Failed to fetch sleepover requests');
-      console.error(err);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleStatusUpdate = async (requestId: string, status: 'approved' | 'rejected', response?: string) => {
+  const handleApprove = async (requestId: string) => {
     try {
-      await updateSleepoverStatus(requestId, status, response);
-      fetchRequests(); // Refresh the list
-    } catch (err) {
-      console.error('Error updating request status:', err);
+      const requestRef = doc(db, 'sleepover_requests', requestId);
+      await updateDoc(requestRef, {
+        status: 'approved',
+        adminResponse,
+        updatedAt: serverTimestamp()
+      });
+      toast.success('Sleepover request approved');
+      setSelectedRequest(null);
+      setAdminResponse('');
+      fetchRequests();
+    } catch (error) {
+      console.error('Error approving request:', error);
+      toast.error('Failed to approve request');
     }
   };
 
-  if (loading) return <div>Loading...</div>;
-  if (error) return <div>Error: {error}</div>;
+  const handleReject = async (requestId: string) => {
+    try {
+      const requestRef = doc(db, 'sleepover_requests', requestId);
+      await updateDoc(requestRef, {
+        status: 'rejected',
+        adminResponse,
+        updatedAt: serverTimestamp()
+      });
+      toast.success('Sleepover request rejected');
+      setSelectedRequest(null);
+      setAdminResponse('');
+      fetchRequests();
+    } catch (error) {
+      console.error('Error rejecting request:', error);
+      toast.error('Failed to reject request');
+    }
+  };
+
+  if (loading) {
+    return <div className="p-6">Loading...</div>;
+  }
+
+  if (error) {
+    return <div className="p-6 text-red-600">{error}</div>;
+  }
 
   return (
-    <div className="container mx-auto px-4 py-8">
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold">Sleepover Requests</h1>
-        <button
-          onClick={() => setShowHistory(!showHistory)}
-          className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
-        >
-          {showHistory ? 'Show Today\'s Requests' : 'Show History'}
-        </button>
-      </div>
-
-      <div className="grid gap-4">
+    <div className="p-6">
+      <h1 className="text-2xl font-bold mb-6">Sleepover Requests</h1>
+      
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {requests.map((request) => (
-          <div key={request.id} className="border rounded-lg p-4 shadow-sm">
-            <div className="grid grid-cols-2 gap-4">
+          <div
+            key={request.id}
+            className="bg-white rounded-lg shadow-md p-6 space-y-4"
+          >
+            <div className="flex justify-between items-start">
               <div>
-                <p className="font-semibold">Tenant Code</p>
-                <p>{request.tenantCode}</p>
-              </div>
-              <div>
-                <p className="font-semibold">Guest Name</p>
-                <p>{request.guestName} {request.guestSurname}</p>
-              </div>
-              <div>
-                <p className="font-semibold">Guest Number</p>
-                <p>{request.guestPhoneNumber}</p>
-              </div>
-              <div>
-                <p className="font-semibold">Room Number</p>
-                <p>{request.roomNumber}</p>
-              </div>
-              <div>
-                <p className="font-semibold">Duration of Stay</p>
-                <p>{request.durationOfStay}</p>
-              </div>
-              <div>
-                <p className="font-semibold">Status</p>
-                <p className={`font-semibold ${
-                  request.status === 'approved' ? 'text-green-600' :
-                  request.status === 'rejected' ? 'text-red-600' :
-                  'text-yellow-600'
-                }`}>
-                  {request.status.charAt(0).toUpperCase() + request.status.slice(1)}
+                <h3 className="font-semibold text-lg">
+                  {request.guestName} {request.guestSurname}
+                </h3>
+                <p className="text-sm text-gray-600">
+                  Tenant Code: {request.tenantCode}
+                </p>
+                <p className="text-sm text-gray-600">
+                  Room: {request.roomNumber}
                 </p>
               </div>
+              <span className={`px-3 py-1 rounded-full text-sm font-medium ${
+                request.status === 'approved'
+                  ? 'bg-green-100 text-green-800'
+                  : request.status === 'rejected'
+                  ? 'bg-red-100 text-red-800'
+                  : 'bg-yellow-100 text-yellow-800'
+              }`}>
+                {request.status.charAt(0).toUpperCase() + request.status.slice(1)}
+              </span>
             </div>
 
+            <div className="space-y-2">
+              <p className="text-sm">
+                <span className="font-medium">Phone:</span> {request.guestPhone}
+              </p>
+              <p className="text-sm">
+                <span className="font-medium">Start Date:</span>{' '}
+                {format(request.startDate, 'MMM dd, yyyy')}
+              </p>
+              <p className="text-sm">
+                <span className="font-medium">End Date:</span>{' '}
+                {format(request.endDate, 'MMM dd, yyyy')}
+              </p>
+            </div>
+
+            {request.additionalGuests && request.additionalGuests.length > 0 && (
+              <div>
+                <h4 className="font-medium text-sm mb-2">Additional Guests:</h4>
+                <ul className="space-y-1">
+                  {request.additionalGuests.map((guest, index) => (
+                    <li key={index} className="text-sm">
+                      {guest.name} - {guest.phone}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
             {request.status === 'pending' && (
-              <div className="mt-4 flex gap-2">
+              <div className="flex gap-2 mt-4">
                 <button
-                  onClick={() => handleStatusUpdate(request.id, 'approved')}
-                  className="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600"
+                  onClick={() => setSelectedRequest(request)}
+                  className="flex-1 bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700"
                 >
-                  Approve
-                </button>
-                <button
-                  onClick={() => handleStatusUpdate(request.id, 'rejected')}
-                  className="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600"
-                >
-                  Reject
+                  Review
                 </button>
               </div>
             )}
 
             {request.adminResponse && (
-              <div className="mt-4">
-                <p className="font-semibold">Admin Response:</p>
-                <p>{request.adminResponse}</p>
+              <div className="mt-4 pt-4 border-t">
+                <p className="text-sm">
+                  <span className="font-medium">Admin Response:</span>{' '}
+                  {request.adminResponse}
+                </p>
               </div>
             )}
           </div>
         ))}
       </div>
 
-      {requests.length === 0 && (
-        <div className="text-center text-gray-500 mt-8">
-          No {showHistory ? 'historical' : 'today\'s'} sleepover requests found.
+      {selectedRequest && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full">
+            <h2 className="text-xl font-bold mb-4">Review Sleepover Request</h2>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Admin Response
+                </label>
+                <textarea
+                  value={adminResponse}
+                  onChange={(e) => setAdminResponse(e.target.value)}
+                  className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  rows={4}
+                  required
+                />
+              </div>
+              <div className="flex gap-4">
+                <button
+                  onClick={() => handleApprove(selectedRequest.id)}
+                  className="flex-1 bg-green-600 text-white py-2 px-4 rounded-lg hover:bg-green-700"
+                >
+                  Approve
+                </button>
+                <button
+                  onClick={() => handleReject(selectedRequest.id)}
+                  className="flex-1 bg-red-600 text-white py-2 px-4 rounded-lg hover:bg-red-700"
+                >
+                  Reject
+                </button>
+                <button
+                  onClick={() => {
+                    setSelectedRequest(null);
+                    setAdminResponse('');
+                  }}
+                  className="flex-1 bg-gray-600 text-white py-2 px-4 rounded-lg hover:bg-gray-700"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
       )}
     </div>

@@ -1,28 +1,32 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { useAuth } from '@/context/AuthContext';
+import { useAuth } from '@/lib/auth';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft } from 'lucide-react';
-import { getMySleepoverRequests } from '@/lib/firestore';
+import { getMySleepoverRequests, type SleepoverRequest } from '@/lib/firestore';
 import { format } from 'date-fns';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 
 export default function SleepoverHistoryPage() {
-  const { userData } = useAuth();
+  const { user } = useAuth();
   const router = useRouter();
-  const [requests, setRequests] = useState<any[]>([]);
+  const [requests, setRequests] = useState<SleepoverRequest[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    fetchRequests();
-  }, [userData]);
+    if (user) {
+      fetchRequests();
+    }
+  }, [user]);
 
   const fetchRequests = async () => {
+    if (!user?.uid) return;
+    
     try {
-      const data = await getMySleepoverRequests(userData?.id || '');
+      const data = await getMySleepoverRequests(user.uid);
       setRequests(data);
     } catch (error) {
       console.error('Error fetching requests:', error);
@@ -32,7 +36,7 @@ export default function SleepoverHistoryPage() {
     }
   };
 
-  if (!userData) {
+  if (!user) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
@@ -69,12 +73,34 @@ export default function SleepoverHistoryPage() {
             </CardHeader>
             <CardContent>
               <div className="grid gap-2">
-                <p><strong>Guest Name:</strong> {request.guestName}</p>
-                <p><strong>Date:</strong> {format(new Date(request.date), 'PPP')}</p>
-                <p><strong>Reason:</strong> {request.reason}</p>
+                <p><strong>Guest Name:</strong> {request.guestName} {request.guestSurname}</p>
+                <p><strong>Room Number:</strong> {request.roomNumber}</p>
+                <p><strong>Guest Phone:</strong> {request.guestPhoneNumber}</p>
+                <p><strong>Check-in:</strong> {format(new Date(request.startDate), 'PPP')}</p>
+                <p><strong>Check-out:</strong> {format(new Date(request.endDate), 'PPP')}</p>
+                {request.durationOfStay && (
+                  <p><strong>Duration:</strong> {request.durationOfStay}</p>
+                )}
+                {request.additionalGuests && request.additionalGuests.length > 0 && (
+                  <div>
+                    <p className="font-semibold mt-2">Additional Guests:</p>
+                    <ul className="list-disc list-inside">
+                      {request.additionalGuests.map((guest, index) => (
+                        <li key={index}>
+                          {guest.name} {guest.surname} - {guest.phoneNumber}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
                 <p><strong>Submitted:</strong> {format(new Date(request.createdAt), 'PPP p')}</p>
                 {request.updatedAt && (
                   <p><strong>Last Updated:</strong> {format(new Date(request.updatedAt), 'PPP p')}</p>
+                )}
+                {request.adminResponse && (
+                  <div className="mt-2 p-3 bg-gray-50 rounded-md">
+                    <p><strong>Admin Response:</strong> {request.adminResponse}</p>
+                  </div>
                 )}
               </div>
             </CardContent>

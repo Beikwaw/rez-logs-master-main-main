@@ -970,34 +970,41 @@ export async function getMyComplaints(userId:string){
 }
 
 export async function getMySleepoverRequests(userId: string) {
-  const sleepoverRef = collection(db, 'sleepover_requests');
-  const q = query(
-    sleepoverRef,
-    where('userId', '==', userId),
-    orderBy('createdAt', 'desc')
-  );
-  const querySnapshot = await getDocs(q);
+  if (!userId) return [];
   
-  // Helper function to safely convert Firestore timestamp to Date
-  const toDate = (timestamp: any): Date => {
-    if (!timestamp) return new Date();
-    if (timestamp instanceof Timestamp) return timestamp.toDate();
-    if (timestamp instanceof Date) return timestamp;
-    return new Date(timestamp);
-  };
-
-  return querySnapshot.docs.map(doc => {
-    const data = doc.data();
-    return {
-      id: doc.id,
-      ...data,
-      createdAt: toDate(data.createdAt),
-      updatedAt: toDate(data.updatedAt),
-      startDate: toDate(data.startDate),
-      endDate: toDate(data.endDate),
-      signOutTime: data.signOutTime ? toDate(data.signOutTime) : undefined
+  try {
+    const sleepoverRef = collection(db, 'sleepover_requests');
+    const q = query(
+      sleepoverRef,
+      where('userId', '==', userId),
+      orderBy('createdAt', 'desc')
+    );
+    const querySnapshot = await getDocs(q);
+    
+    // Helper function to safely convert Firestore timestamp to Date
+    const toDate = (timestamp: any): Date => {
+      if (!timestamp) return new Date();
+      if (timestamp instanceof Timestamp) return timestamp.toDate();
+      if (timestamp instanceof Date) return timestamp;
+      return new Date(timestamp);
     };
-  }) as SleepoverRequest[];
+
+    return querySnapshot.docs.map(doc => {
+      const data = doc.data();
+      return {
+        id: doc.id,
+        ...data,
+        createdAt: toDate(data.createdAt),
+        updatedAt: toDate(data.updatedAt),
+        startDate: toDate(data.startDate),
+        endDate: toDate(data.endDate),
+        signOutTime: data.signOutTime ? toDate(data.signOutTime) : undefined
+      };
+    }) as SleepoverRequest[];
+  } catch (error) {
+    console.error('Error fetching sleepover requests:', error);
+    throw error;
+  }
 }
 
 export async function getMyGuestRequests(userId:string){
@@ -1764,4 +1771,35 @@ export async function rejectManagementRequest(requestId: string, adminResponse: 
     adminResponse,
     updatedAt: serverTimestamp()
   });
+}
+
+export async function getTodayManagementRequests() {
+  try {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+
+    const managementRef = collection(db, 'management_requests');
+    const q = query(
+      managementRef,
+      where('createdAt', '>=', Timestamp.fromDate(today)),
+      where('createdAt', '<', Timestamp.fromDate(tomorrow)),
+      orderBy('createdAt', 'desc')
+    );
+
+    const querySnapshot = await getDocs(q);
+    return querySnapshot.docs.map(doc => {
+      const data = doc.data();
+      return {
+        id: doc.id,
+        ...data,
+        createdAt: data.createdAt?.toDate() || new Date(),
+        updatedAt: data.updatedAt?.toDate() || new Date()
+      };
+    });
+  } catch (error) {
+    console.error('Error fetching today\'s management requests:', error);
+    throw error;
+  }
 }

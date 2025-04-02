@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { getAllManagementRequests, approveManagementRequest, rejectManagementRequest } from '@/lib/firestore';
+import { getAllManagementRequests, getTodayManagementRequests, approveManagementRequest, rejectManagementRequest } from '@/lib/firestore';
 import { useAuth } from '@/lib/auth';
 import { format } from 'date-fns';
 import { toast } from 'react-hot-toast';
@@ -9,6 +9,7 @@ import { toast } from 'react-hot-toast';
 export default function AdminManagementPage() {
   const { user } = useAuth();
   const [requests, setRequests] = useState([]);
+  const [todayRequests, setTodayRequests] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedRequest, setSelectedRequest] = useState(null);
@@ -23,8 +24,12 @@ export default function AdminManagementPage() {
 
   const fetchRequests = async () => {
     try {
-      const allRequests = await getAllManagementRequests();
+      const [allRequests, today] = await Promise.all([
+        getAllManagementRequests(),
+        getTodayManagementRequests()
+      ]);
       setRequests(allRequests);
+      setTodayRequests(today);
     } catch (err) {
       setError('Failed to fetch management requests');
       console.error(err);
@@ -67,9 +72,7 @@ export default function AdminManagementPage() {
     return <div className="flex justify-center items-center min-h-screen">Loading...</div>;
   }
 
-  const displayRequests = showHistory 
-    ? requests 
-    : requests.filter(req => req.status === 'pending');
+  const displayRequests = showHistory ? requests : todayRequests;
 
   return (
     <div className="container mx-auto px-4 py-8">
@@ -79,7 +82,7 @@ export default function AdminManagementPage() {
           onClick={() => setShowHistory(!showHistory)}
           className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
         >
-          {showHistory ? 'Show Pending Requests' : 'Show History'}
+          {showHistory ? 'Show Today\'s Requests' : 'Show History'}
         </button>
       </div>
 
@@ -92,7 +95,7 @@ export default function AdminManagementPage() {
       {displayRequests.length === 0 ? (
         <div className="text-center py-8">
           <p className="text-gray-500">
-            {showHistory ? 'No requests found.' : 'No pending requests.'}
+            {showHistory ? 'No management requests found.' : 'No management requests for today.'}
           </p>
         </div>
       ) : (
