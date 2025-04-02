@@ -993,14 +993,25 @@ export async function getMySleepoverRequests(userId: string) {
       const data = doc.data();
       return {
         id: doc.id,
-        ...data,
-        createdAt: toDate(data.createdAt),
-        updatedAt: toDate(data.updatedAt),
+        userId: data.userId,
+        tenantCode: data.tenantCode,
+        guestName: data.guestName,
+        guestSurname: data.guestSurname,
+        guestPhoneNumber: data.guestPhoneNumber,
+        roomNumber: data.roomNumber,
+        additionalGuests: data.additionalGuests || [],
         startDate: toDate(data.startDate),
         endDate: toDate(data.endDate),
-        signOutTime: data.signOutTime ? toDate(data.signOutTime) : undefined
-      };
-    }) as SleepoverRequest[];
+        status: data.status || 'pending',
+        createdAt: toDate(data.createdAt),
+        updatedAt: toDate(data.updatedAt),
+        adminResponse: data.adminResponse,
+        securityCode: data.securityCode,
+        isActive: data.isActive,
+        signOutTime: data.signOutTime ? toDate(data.signOutTime) : undefined,
+        durationOfStay: data.durationOfStay
+      } as SleepoverRequest;
+    });
   } catch (error) {
     console.error('Error fetching sleepover requests:', error);
     throw error;

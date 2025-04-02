@@ -15,8 +15,8 @@ const firebaseConfig = {
 
 // Initialize Firebase only once
 let app;
-let auth;
-let db;
+let auth: Auth;
+let db: Firestore;
 
 if (typeof window !== 'undefined') {
   app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();

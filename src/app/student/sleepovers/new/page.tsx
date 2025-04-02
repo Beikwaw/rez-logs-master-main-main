@@ -1,17 +1,17 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuth } from '@/lib/auth';
-import { createSleepoverRequest } from '@/lib/firestore';
-import { toast } from 'react-hot-toast';
+import { createSleepoverRequest, getUserById } from '@/lib/firestore';
+import { toast } from 'sonner';
 import { useRouter } from 'next/navigation';
 
 export default function NewSleepoverRequest() {
   const { user } = useAuth();
   const router = useRouter();
   const [loading, setLoading] = useState(false);
+  const [userData, setUserData] = useState<any>(null);
   const [formData, setFormData] = useState({
-    tenantCode: '',
     roomNumber: '',
     guestName: '',
     guestSurname: '',
@@ -21,10 +21,47 @@ export default function NewSleepoverRequest() {
     additionalGuests: [{ name: '', surname: '', phoneNumber: '' }]
   });
 
+  useEffect(() => {
+    const fetchUserData = async () => {
+      if (user?.uid) {
+        try {
+          const data = await getUserById(user.uid);
+          if (data) {
+            setUserData(data);
+            setFormData(prev => ({
+              ...prev,
+              roomNumber: data.room_number
+            }));
+          }
+        } catch (error) {
+          console.error('Error fetching user data:', error);
+          toast.error('Failed to load user data');
+        }
+      }
+    };
+    fetchUserData();
+  }, [user]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!user) {
+    if (!user || !userData) {
       toast.error('Please sign in to submit a sleepover request');
+      return;
+    }
+
+    // Validate dates
+    const startDate = new Date(formData.startDate);
+    const endDate = new Date(formData.endDate);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    if (startDate < today) {
+      toast.error('Start date cannot be in the past');
+      return;
+    }
+
+    if (endDate <= startDate) {
+      toast.error('End date must be after start date');
       return;
     }
 
@@ -32,7 +69,7 @@ export default function NewSleepoverRequest() {
       setLoading(true);
       const sleepoverData = {
         userId: user.uid,
-        tenantCode: formData.tenantCode,
+        tenantCode: userData.tenant_code,
         roomNumber: formData.roomNumber,
         guestName: formData.guestName,
         guestSurname: formData.guestSurname,
@@ -45,8 +82,10 @@ export default function NewSleepoverRequest() {
       };
 
       await createSleepoverRequest(sleepoverData);
-      toast.success('Sleepover request submitted successfully');
-      router.push('/student/sleepovers/history');
+      toast.success('Your sleepover request is being reviewed by the admin. You will be notified once a decision is made.');
+      setTimeout(() => {
+        router.push('/student/sleepovers/history');
+      }, 2000);
     } catch (error) {
       console.error('Error submitting sleepover request:', error);
       toast.error('Failed to submit sleepover request');
@@ -95,18 +134,6 @@ export default function NewSleepoverRequest() {
 
       <form onSubmit={handleSubmit} className="max-w-2xl space-y-6">
         <div className="grid grid-cols-2 gap-4">
-          <div>
-            <label className="block text-sm font-medium mb-1">Tenant Code</label>
-            <input
-              type="text"
-              required
-              value={formData.tenantCode}
-              onChange={(e) => setFormData(prev => ({ ...prev, tenantCode: e.target.value }))}
-              className="w-full p-2 border rounded"
-              placeholder="Enter your tenant code"
-            />
-          </div>
-
           <div>
             <label className="block text-sm font-medium mb-1">Room Number</label>
             <input
@@ -160,6 +187,7 @@ export default function NewSleepoverRequest() {
             <input
               type="date"
               required
+              min={new Date().toISOString().split('T')[0]}
               value={formData.startDate}
               onChange={(e) => setFormData(prev => ({ ...prev, startDate: e.target.value }))}
               className="w-full p-2 border rounded"
@@ -171,6 +199,7 @@ export default function NewSleepoverRequest() {
             <input
               type="date"
               required
+              min={formData.startDate || new Date().toISOString().split('T')[0]}
               value={formData.endDate}
               onChange={(e) => setFormData(prev => ({ ...prev, endDate: e.target.value }))}
               className="w-full p-2 border rounded"

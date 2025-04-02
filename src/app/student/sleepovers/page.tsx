@@ -5,7 +5,7 @@ import { useAuth } from '@/context/AuthContext';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Plus, History } from 'lucide-react';
-import { getSleepoverRequests, getActiveSleepoverGuests, signOutSleepoverGuest } from '@/lib/firestore';
+import { getMySleepoverRequests, getActiveSleepoverGuests, signOutSleepoverGuest, type SleepoverRequest } from '@/lib/firestore';
 import { format, isToday } from 'date-fns';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
@@ -31,8 +31,9 @@ export default function SleepoversPage() {
 
   const fetchRequests = async () => {
     try {
-      const userRequests = await getSleepoverRequests();
-      setRequests(userRequests.filter(request => request.userId === user?.uid));
+      if (!user?.uid) return;
+      const userRequests = await getMySleepoverRequests(user.uid);
+      setRequests(userRequests);
     } catch (error) {
       console.error('Error fetching requests:', error);
       toast.error('Failed to fetch requests');
