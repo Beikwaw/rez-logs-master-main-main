@@ -1,14 +1,15 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
-import { useAuth } from '@/lib/auth';
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { ArrowLeft, Clock, CheckCircle, XCircle } from 'lucide-react';
-import { getMySleepoverRequests, type SleepoverRequest } from '@/lib/firestore';
+import { useEffect, useState } from 'react';
+import { useAuth } from '@/contexts/AuthContext';
+import { getMySleepoverRequests, subscribeToSleepoverRequests } from '@/lib/firestore';
 import { format } from 'date-fns';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { ArrowLeft, CheckCircle2, Clock, XCircle } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
+import { SleepoverRequest } from '@/lib/firestore';
 
 export default function SleepoverHistoryPage() {
   const { user } = useAuth();
@@ -18,57 +19,53 @@ export default function SleepoverHistoryPage() {
   const [isRefreshing, setIsRefreshing] = useState(false);
 
   useEffect(() => {
-    if (user) {
-      fetchRequests();
-      // Set up real-time updates
-      const interval = setInterval(() => {
-        setIsRefreshing(true);
-        fetchRequests();
-      }, 30000); // Update every 30 seconds
-      return () => clearInterval(interval);
-    }
-  }, [user]);
-
-  const fetchRequests = async () => {
     if (!user?.uid) return;
-    
-    try {
-      setIsLoading(true);
-      const data = await getMySleepoverRequests(user.uid);
-      setRequests(data);
-    } catch (error) {
-      console.error('Error fetching requests:', error);
-      toast.error('Unable to load your sleepover requests. Please try again later.');
-      setRequests([]);
-    } finally {
+
+    // Set up real-time subscription
+    const unsubscribe = subscribeToSleepoverRequests(user.uid, (updatedRequests) => {
+      setRequests(updatedRequests);
       setIsLoading(false);
       setIsRefreshing(false);
-    }
-  };
+    });
+
+    // Initial fetch
+    const fetchInitialRequests = async () => {
+      try {
+        const data = await getMySleepoverRequests(user.uid);
+        setRequests(data);
+      } catch (error) {
+        console.error('Error fetching requests:', error);
+        toast.error('Unable to load your sleepover requests. Please try again later.');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchInitialRequests();
+
+    // Cleanup subscription on unmount
+    return () => unsubscribe();
+  }, [user?.uid]);
 
   const getStatusIcon = (status: string) => {
     switch (status) {
-      case 'pending':
-        return <Clock className="h-4 w-4 text-yellow-500" />;
       case 'approved':
-        return <CheckCircle className="h-4 w-4 text-green-500" />;
+        return <CheckCircle2 className="h-5 w-5 text-green-500" />;
       case 'rejected':
-        return <XCircle className="h-4 w-4 text-red-500" />;
+        return <XCircle className="h-5 w-5 text-red-500" />;
       default:
-        return null;
+        return <Clock className="h-5 w-5 text-yellow-500" />;
     }
   };
 
   const getStatusMessage = (status: string) => {
     switch (status) {
-      case 'pending':
-        return 'Your request is being reviewed by the admin';
       case 'approved':
-        return 'Your request has been approved';
+        return 'Approved';
       case 'rejected':
-        return 'Your request has been rejected';
+        return 'Rejected';
       default:
-        return status;
+        return 'Pending Review';
     }
   };
 
@@ -99,7 +96,7 @@ export default function SleepoverHistoryPage() {
           )}
           <Button 
             variant="outline" 
-            onClick={fetchRequests}
+            onClick={() => setIsRefreshing(true)}
             disabled={isRefreshing}
           >
             Refresh

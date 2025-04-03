@@ -13,7 +13,8 @@ import {
   addDoc,
   orderBy,
   serverTimestamp,
-  writeBatch
+  writeBatch,
+  onSnapshot
 } from 'firebase/firestore';
 import { db } from './firebase';
 import { auth } from './firebase';
@@ -1813,4 +1814,48 @@ export async function getTodayManagementRequests() {
     console.error('Error fetching today\'s management requests:', error);
     throw error;
   }
+}
+
+// Add a new function for real-time updates
+export function subscribeToSleepoverRequests(userId: string, callback: (requests: SleepoverRequest[]) => void) {
+  if (!userId) return () => {};
+
+  const sleepoverRef = collection(db, 'sleepover_requests');
+  const q = query(
+    sleepoverRef,
+    where('userId', '==', userId),
+    orderBy('createdAt', 'desc'),
+    orderBy('__name__', 'asc')
+  );
+
+  const unsubscribe = onSnapshot(q, (querySnapshot) => {
+    const requests = querySnapshot.docs.map(doc => {
+      const data = doc.data();
+      return {
+        id: doc.id,
+        userId: data.userId,
+        tenantCode: data.tenantCode,
+        guestName: data.guestName,
+        guestSurname: data.guestSurname,
+        guestPhoneNumber: data.guestPhoneNumber,
+        roomNumber: data.roomNumber,
+        additionalGuests: data.additionalGuests || [],
+        startDate: data.startDate?.toDate(),
+        endDate: data.endDate?.toDate(),
+        status: data.status || 'pending',
+        createdAt: data.createdAt?.toDate(),
+        updatedAt: data.updatedAt?.toDate(),
+        adminResponse: data.adminResponse,
+        securityCode: data.securityCode,
+        isActive: data.isActive,
+        signOutTime: data.signOutTime?.toDate(),
+        durationOfStay: data.durationOfStay
+      } as SleepoverRequest;
+    });
+    callback(requests);
+  }, (error) => {
+    console.error('Error in real-time updates:', error);
+  });
+
+  return unsubscribe;
 }
