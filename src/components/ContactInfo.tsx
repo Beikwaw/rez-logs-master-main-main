@@ -2,31 +2,16 @@ import React from 'react';
 import { FaEnvelope, FaPhone, FaGlobe } from 'react-icons/fa';
 
 const ContactInfo = () => {
-  const contacts = [
+  const contactInfo = [
     {
-      title: 'Finance',
-      email: 'carmen@swish.co.za',
-      icon: <FaEnvelope className="w-5 h-5" />
-    },
-    {
-      title: 'Management',
-      email: 'obsadmin@mydomainliving.co.za',
-      icon: <FaEnvelope className="w-5 h-5" />
-    },
-    {
-      title: 'Onsite Building Manager',
-      phone: '078 355 3314',
-      icon: <FaPhone className="w-5 h-5" />
-    },
-    {
-      title: 'Technical Support',
-      phone: '078 757 8408',
-      icon: <FaGlobe className="w-5 h-5" />
+      title: 'Maintenance',
+      email: 'maintenance@mydomain.co.za',
+      phone: '011 234 5678'
     },
     {
       title: 'Security',
-      phone: '068 204 0814',
-      icon: <FaPhone className="w-5 h-5" />
+      email: 'security@mydomain.co.za',
+      phone: '011 234 5679'
     }
   ];
 
@@ -34,7 +19,7 @@ const ContactInfo = () => {
     <div className="bg-white rounded-lg shadow-md p-6">
       <h2 className="text-xl font-semibold mb-4 text-gray-800">Contact Information</h2>
       <div className="space-y-4">
-        {contacts.map((contact, index) => (
+        {contactInfo.map((contact, index) => (
           <div key={index} className="flex items-start space-x-3">
             <div className="text-blue-600 mt-1">
               {contact.icon}

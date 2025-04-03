@@ -72,20 +72,21 @@ export default function DashboardPage() {
         });
       }
 
-      getAnnouncements().then(announcements => {
-        // Convert Firestore timestamps to JavaScript Date objects
-        const processedAnnouncements = announcements.map(announcement => ({
-          ...announcement,
-          createdAt: announcement.createdAt?.toDate() || new Date(),
-          expiresAt: announcement.expiresAt?.toDate()
-        }));
-        setAnnouncements(processedAnnouncements);
-        setIsLoading(false);
-      }).catch(error => {
-        console.error('Error fetching announcements:', error);
-        toast.error('Failed to fetch announcements');
-        setIsLoading(false);
-      });
+      const fetchAnnouncements = async () => {
+        try {
+          const announcements = await getAnnouncements();
+          const processedAnnouncements = announcements.map(announcement => ({
+            ...announcement,
+            createdAt: announcement.createdAt instanceof Date ? announcement.createdAt : new Date(),
+            expiresAt: announcement.expiresAt instanceof Date ? announcement.expiresAt : undefined
+          }));
+          setAnnouncements(processedAnnouncements);
+        } catch (error) {
+          console.error('Error fetching announcements:', error);
+        }
+      };
+
+      fetchAnnouncements();
     }
 
     if (myComplaintsCount === 0) {

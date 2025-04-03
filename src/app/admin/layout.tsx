@@ -29,12 +29,11 @@ const hasAccessToPage = (adminType: AdminData['type'], page: string): boolean =>
   if (adminType === 'superadmin') return true;
 
   const accessMap: Record<AdminData['type'], string[]> = {
-    'superadmin': ['', 'users', 'alerts', 'calendar', 'settings', 'tools', 'maintenance', 'security', 'complaints', 'guests', 'sleepovers', 'announcements', 'newbies'],
-    'admin-maintenance': ['', 'maintenance', 'tools', 'complaints'],
-    'admin-security': ['', 'security', 'guests', 'sleepovers'],
-    'admin-complaints': ['', 'complaints', 'alerts'],
-    'admin-guest-management': ['', 'guests', 'sleepovers', 'calendar'],
-    'admin-finance': ['', 'finance', 'payments', 'reports']
+    'superadmin': ['', 'users', 'admins', 'announcements', 'settings'],
+    'admin-maintenance': ['', 'maintenance', 'complaints', 'settings'],
+    'admin-security': ['', 'guests', 'sleepovers', 'settings'],
+    'admin-complaints': ['', 'complaints', 'settings'],
+    'admin-guest-management': ['', 'guests', 'sleepovers', 'settings']
   };
 
   const currentPage = page.toLowerCase();

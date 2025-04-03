@@ -1,6 +1,8 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { format } from "date-fns";
 import type { Announcement } from "@/types/announcement";
+import { markAnnouncementAsShown } from "@/lib/firestore";
+import { useEffect } from "react";
 
 interface AnnouncementPopupProps {
   announcement: Announcement;
@@ -9,6 +11,12 @@ interface AnnouncementPopupProps {
 }
 
 export function AnnouncementPopup({ announcement, isOpen, onClose }: AnnouncementPopupProps) {
+  useEffect(() => {
+    if (isOpen && announcement && !announcement.isFirstTimeShown) {
+      markAnnouncementAsShown(announcement.id).catch(console.error);
+    }
+  }, [isOpen, announcement]);
+
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-2xl">

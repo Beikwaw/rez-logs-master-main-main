@@ -26,7 +26,7 @@ export interface AdminData {
   id: string;
   userId: string;
   email: string;
-  type: 'superadmin' | 'admin-finance' | 'admin-maintenance' | 'admin-security' | 'admin-complaints' | 'admin-guest-management';
+  type: 'superadmin' | 'admin-maintenance' | 'admin-security' | 'admin-complaints' | 'admin-guest-management';
   role: 'admin' | 'superadmin';
   name: string;
   createdAt: Date;
@@ -1262,138 +1262,6 @@ export const getUserByTenantCode = async (tenantCode: string): Promise<Firestore
   }
 };
 
-// Finance-related functions
-export const getStudentFinanceData = async (tenantCode: string) => {
-  try {
-    // First get the user by tenant code
-    const user = await getUserByTenantCode(tenantCode);
-    if (!user) {
-      throw new Error('Student not found');
-    }
-
-    // Get payment history
-    const paymentsRef = collection(db, 'payments');
-    const paymentsQuery = query(
-      paymentsRef,
-      where('userId', '==', user.id),
-      orderBy('date', 'desc')
-    );
-    const paymentsSnap = await getDocs(paymentsQuery);
-    const paymentHistory: FirestorePayment[] = paymentsSnap.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data(),
-      date: doc.data().date.toDate(),
-      createdAt: doc.data().createdAt?.toDate(),
-      updatedAt: doc.data().updatedAt?.toDate()
-    })) as FirestorePayment[];
-
-    // Calculate outstanding balance
-    const outstandingBalance = paymentHistory.reduce((total, payment) => {
-      if (payment.status === 'pending' || payment.status === 'overdue') {
-        return total + payment.amount;
-      }
-      return total;
-    }, 0);
-
-    // Get next payment due
-    const pendingPayments = paymentHistory.filter(
-      payment => payment.status === 'pending'
-    );
-    const nextPaymentDue = pendingPayments.length > 0
-      ? pendingPayments[0].date
-      : new Date();
-
-    return {
-      fullName: `${user.name || ''} ${user.surname || ''}`.trim(),
-      tenantCode: user.tenant_code,
-      roomNumber: user.room_number,
-      email: user.email,
-      phone: user.phone || '',
-      paymentHistory,
-      outstandingBalance,
-      nextPaymentDue
-    };
-  } catch (error) {
-    console.error('Error getting student finance data:', error);
-    throw error;
-  }
-};
-
-export const getStudentFinanceReports = async (userId: string) => {
-  try {
-    const reportsRef = collection(db, 'financial_reports');
-    const reportsQuery = query(
-      reportsRef,
-      where('userId', '==', userId),
-      orderBy('reportDate', 'desc')
-    );
-    const reportsSnap = await getDocs(reportsQuery);
-
-    return reportsSnap.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data(),
-      reportDate: doc.data().reportDate.toDate(),
-      createdAt: doc.data().createdAt?.toDate()
-    }));
-  } catch (error) {
-    console.error('Error getting finance reports:', error);
-    throw error;
-  }
-};
-
-export const createFinanceReport = async (
-  userId: string,
-  reportData: {
-    tenantCode: string;
-    reportDate: Date;
-    reportContent: string;
-  }
-) => {
-  try {
-    const reportsRef = collection(db, 'financial_reports');
-    const newReport = {
-      userId,
-      tenantCode: reportData.tenantCode,
-      reportDate: reportData.reportDate,
-      reportData: reportData.reportContent,
-      createdAt: new Date()
-    };
-
-    const docRef = await addDoc(reportsRef, newReport);
-    return docRef.id;
-  } catch (error) {
-    console.error('Error creating finance report:', error);
-    throw error;
-  }
-};
-
-export const recordPayment = async (
-  userId: string,
-  paymentData: {
-    amount: number;
-    type: 'rent' | 'deposit' | 'fine' | 'other';
-    description: string;
-    date: Date;
-    status: 'paid' | 'pending' | 'overdue';
-  }
-) => {
-  try {
-    const paymentsRef = collection(db, 'payments');
-    const newPayment = {
-      userId,
-      ...paymentData,
-      createdAt: new Date(),
-      updatedAt: new Date()
-    };
-
-    const docRef = await addDoc(paymentsRef, newPayment);
-    return docRef.id;
-  } catch (error) {
-    console.error('Error recording payment:', error);
-    throw error;
-  }
-};
-
 // Announcement-related functions
 export const createAnnouncement = async (
   announcement: Omit<Announcement, 'id' | 'createdAt' | 'createdBy' | 'createdByName'>
@@ -1406,7 +1274,8 @@ export const createAnnouncement = async (
       createdBy: auth.currentUser?.uid || '',
       createdByName: auth.currentUser?.displayName || 'Unknown Admin',
       id: '',
-      status: 'active' as const
+      status: 'active' as const,
+      isFirstTimeShown: false
     };
 
     const docRef = await addDoc(announcementRef, newAnnouncement);
@@ -1424,38 +1293,44 @@ export const getAnnouncements = async () => {
     const announcementsRef = collection(db, 'announcements');
     const q = query(
       announcementsRef,
+      where('status', '==', 'active'),
       orderBy('createdAt', 'desc')
     );
     const querySnapshot = await getDocs(q);
-    return querySnapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data()
-    })) as Announcement[];
+    
+    // Helper function to safely convert Firestore timestamp to Date
+    const toDate = (timestamp: any): Date | undefined => {
+      if (!timestamp) return undefined;
+      if (timestamp instanceof Timestamp) return timestamp.toDate();
+      if (timestamp instanceof Date) return timestamp;
+      return new Date(timestamp);
+    };
+    
+    return querySnapshot.docs.map(doc => {
+      const data = doc.data();
+      return {
+        id: doc.id,
+        ...data,
+        createdAt: toDate(data.createdAt) || new Date(),
+        expiresAt: toDate(data.expiresAt),
+        isFirstTimeShown: data.isFirstTimeShown || false
+      } as Announcement;
+    });
   } catch (error) {
     console.error('Error fetching announcements:', error);
     throw error;
   }
 };
 
-export const updateAnnouncement = async (
-  announcementId: string,
-  updates: Partial<Announcement>
-) => {
+export const markAnnouncementAsShown = async (announcementId: string) => {
   try {
     const announcementRef = doc(db, 'announcements', announcementId);
-    await updateDoc(announcementRef, updates);
+    await updateDoc(announcementRef, {
+      isFirstTimeShown: true,
+      updatedAt: serverTimestamp()
+    });
   } catch (error) {
-    console.error('Error updating announcement:', error);
-    throw error;
-  }
-};
-
-export const deleteAnnouncement = async (announcementId: string) => {
-  try {
-    const announcementRef = doc(db, 'announcements', announcementId);
-    await deleteDoc(announcementRef);
-  } catch (error) {
-    console.error('Error deleting announcement:', error);
+    console.error('Error marking announcement as shown:', error);
     throw error;
   }
 };
@@ -1858,4 +1733,102 @@ export function subscribeToSleepoverRequests(userId: string, callback: (requests
   });
 
   return unsubscribe;
+}
+
+export async function checkoutSleepoverGuest(userId: string) {
+  if (!userId) {
+    throw new Error('User ID is required');
+  }
+
+  try {
+    const sleepoverRef = collection(db, 'sleepover_requests');
+    const q = query(
+      sleepoverRef,
+      where('userId', '==', userId),
+      where('status', '==', 'approved')
+    );
+
+    const querySnapshot = await getDocs(q);
+    
+    if (querySnapshot.empty) {
+      throw new Error('No approved sleepover found');
+    }
+
+    // Helper function to safely convert Firestore timestamp to Date
+    const toDate = (timestamp: any): Date => {
+      if (!timestamp) return new Date();
+      if (timestamp.toDate) return timestamp.toDate();
+      if (timestamp instanceof Date) return timestamp;
+      return new Date(timestamp);
+    };
+
+    // Find the most recent active sleepover
+    const activeSleepover = querySnapshot.docs
+      .map(doc => ({
+        id: doc.id,
+        ...doc.data(),
+        startDate: toDate(doc.data().startDate),
+        endDate: toDate(doc.data().endDate),
+        signOutTime: doc.data().signOutTime ? toDate(doc.data().signOutTime) : undefined
+      }))
+      .find(sleepover => {
+        const now = new Date();
+        const isWithinDateRange = now >= sleepover.startDate && 
+          now <= new Date(sleepover.endDate.getFullYear(), sleepover.endDate.getMonth(), sleepover.endDate.getDate(), 23, 59, 59);
+        const notSignedOut = !sleepover.signOutTime;
+        return isWithinDateRange && notSignedOut;
+      });
+
+    if (!activeSleepover) {
+      throw new Error('No active sleepover found. Please ensure your sleepover request is approved and within the valid date range.');
+    }
+
+    // Update the sleepover request
+    await updateDoc(doc(db, 'sleepover_requests', activeSleepover.id), {
+      isActive: false,
+      signOutTime: serverTimestamp(),
+      status: 'completed',
+      updatedAt: serverTimestamp()
+    });
+
+    // Create a notification for the user
+    await createNotification({
+      userId,
+      title: 'Sleepover Checkout',
+      message: `Guest ${activeSleepover.guestName || 'Unknown'} has been checked out successfully`,
+      type: 'sleepover',
+      read: false
+    });
+
+    return {
+      message: 'Guest checked out successfully',
+      checkoutTime: new Date()
+    };
+  } catch (error) {
+    console.error('Error checking out sleepover guest:', error);
+    throw error;
+  }
+}
+
+export async function deleteAnnouncement(announcementId: string): Promise<void> {
+  try {
+    const announcementRef = doc(db, 'announcements', announcementId);
+    await deleteDoc(announcementRef);
+  } catch (error) {
+    console.error('Error deleting announcement:', error);
+    throw new Error('Failed to delete announcement');
+  }
+}
+
+export async function updateAnnouncement(announcementId: string, data: Partial<Announcement>): Promise<void> {
+  try {
+    const announcementRef = doc(db, 'announcements', announcementId);
+    await updateDoc(announcementRef, {
+      ...data,
+      updatedAt: serverTimestamp()
+    });
+  } catch (error) {
+    console.error('Error updating announcement:', error);
+    throw new Error('Failed to update announcement');
+  }
 }

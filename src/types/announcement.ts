@@ -8,6 +8,7 @@ export interface Announcement {
   priority: 'low' | 'medium' | 'high';
   status: 'active' | 'archived';
   expiresAt?: Date;
+  isFirstTimeShown?: boolean;
 }
 
 export interface FirestoreAnnouncement {
@@ -26,4 +27,5 @@ export interface FirestoreAnnouncement {
     seconds: number;
     nanoseconds: number;
   };
+  isFirstTimeShown?: boolean;
 } 
