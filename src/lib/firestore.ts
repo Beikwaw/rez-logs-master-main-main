@@ -1,4 +1,6 @@
-import { 
+import { initializeApp } from 'firebase/app';
+import {
+  getFirestore,
   collection,
   doc,
   setDoc,
@@ -472,23 +474,42 @@ export const createAdmin = async (adminData: Omit<AdminData, 'id' | 'createdAt' 
 };
 
 export const getAdminByUserId = async (userId: string) => {
-  const adminsRef = collection(db, ADMINS_COLLECTION);
-  const q = query(adminsRef, where('userId', '==', userId));
-  const querySnapshot = await getDocs(q);
-  
-  if (querySnapshot.empty) {
+  if (!userId) {
+    console.error('No userId provided to getAdminByUserId');
     return null;
   }
 
-  const doc = querySnapshot.docs[0];
-  const data = doc.data();
-  return {
-    id: doc.id,
-    ...data,
-    createdAt: data.createdAt?.toDate() || new Date(),
-    updatedAt: data.updatedAt?.toDate() || new Date(),
-    lastLogin: data.lastLogin?.toDate()
-  } as AdminData;
+  try {
+    const adminsRef = collection(db, ADMINS_COLLECTION);
+    const q = query(adminsRef, where('userId', '==', userId));
+    const querySnapshot = await getDocs(q);
+    
+    if (querySnapshot.empty) {
+      return null;
+    }
+
+    const doc = querySnapshot.docs[0];
+    const data = doc.data();
+
+    // Helper function to safely convert Firestore timestamp to Date
+    const toDate = (timestamp: any): Date => {
+      if (!timestamp) return new Date();
+      if (timestamp instanceof Timestamp) return timestamp.toDate();
+      if (timestamp instanceof Date) return timestamp;
+      return new Date(timestamp);
+    };
+
+    return {
+      id: doc.id,
+      ...data,
+      createdAt: toDate(data.createdAt),
+      updatedAt: toDate(data.updatedAt),
+      lastLogin: data.lastLogin ? toDate(data.lastLogin) : undefined
+    } as AdminData;
+  } catch (error) {
+    console.error('Error in getAdminByUserId:', error);
+    throw error;
+  }
 };
 
 export const getAllAdmins = async () => {
@@ -1637,16 +1658,33 @@ export async function getTodayGuestSignIns() {
     const querySnapshot = await getDocs(
       query(
         collection(db, 'guest_sign_ins'),
-        where('signInTime', '>=', today)
+        where('signInTime', '>=', Timestamp.fromDate(today))
       )
     );
     
-    return querySnapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data(),
-      signInTime: doc.data().signInTime?.toDate(),
-      signOutTime: doc.data().signOutTime?.toDate(),
-    }));
+    // Helper function to safely convert Firestore timestamp to Date
+    const toDate = (timestamp: any): Date | undefined => {
+      if (!timestamp) return undefined;
+      if (timestamp instanceof Timestamp) return timestamp.toDate();
+      if (timestamp instanceof Date) return timestamp;
+      return new Date(timestamp);
+    };
+    
+    return querySnapshot.docs.map(doc => {
+      const data = doc.data();
+      const signInTime = toDate(data.signInTime);
+      const signOutTime = toDate(data.signOutTime);
+      
+      // Only return documents that have a valid signInTime
+      if (!signInTime) return null;
+      
+      return {
+        id: doc.id,
+        ...data,
+        signInTime,
+        signOutTime
+      };
+    }).filter(Boolean); // Remove any null entries
   } catch (error) {
     console.error('Error fetching today\'s guest sign-ins:', error);
     throw error;

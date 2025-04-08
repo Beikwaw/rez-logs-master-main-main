@@ -35,12 +35,12 @@ export default function AdminPortalPage() {
       // First, authenticate the user
       const userData = await login(email, password, 'admin', rememberMe);
       
-      if (!userData) {
+      if (!userData || !userData.id) {
         throw new Error('Authentication failed');
       }
 
       // Get admin data to check type
-      const adminData = await getAdminByUserId(userData.uid);
+      const adminData = await getAdminByUserId(userData.id);
       if (!adminData) {
         throw new Error('Not authorized as admin');
       }

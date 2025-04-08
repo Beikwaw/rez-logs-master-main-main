@@ -6,13 +6,29 @@ import { useAuth } from '@/lib/auth';
 import { format } from 'date-fns';
 import { toast } from 'react-hot-toast';
 
+interface GuestSignIn {
+  id: string;
+  guestName: string;
+  guestSurname: string;
+  tenantCode: string;
+  roomNumber: string;
+  guestPhoneNumber: string;
+  signInTime: Date;
+  signOutTime?: Date;
+  additionalGuests?: Array<{
+    name: string;
+    surname: string;
+    phoneNumber: string;
+  }>;
+}
+
 export default function AdminGuestSignInPage() {
   const { user } = useAuth();
-  const [signIns, setSignIns] = useState([]);
-  const [todaySignIns, setTodaySignIns] = useState([]);
+  const [signIns, setSignIns] = useState<GuestSignIn[]>([]);
+  const [todaySignIns, setTodaySignIns] = useState<GuestSignIn[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [selectedSignIn, setSelectedSignIn] = useState(null);
+  const [selectedSignIn, setSelectedSignIn] = useState<GuestSignIn | null>(null);
   const [signOutCode, setSignOutCode] = useState('');
   const [showHistory, setShowHistory] = useState(false);
 
