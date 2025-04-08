@@ -957,11 +957,24 @@ export async function getAllMaintenanceRequests() {
       orderBy('createdAt', 'desc')
     )
     const querySnapshot = await getDocs(q)
-    return querySnapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data(),
-      createdAt: convertTimestampToDate(doc.data().createdAt as Timestamp | Date)
-    }))
+    return querySnapshot.docs.map(doc => {
+      const data = doc.data();
+      return {
+        id: doc.id,
+        userId: data.userId || '',
+        title: data.title || '',
+        description: data.description || '',
+        category: data.category || 'other',
+        roomNumber: data.roomNumber || '',
+        timeSlot: data.timeSlot || '',
+        preferredDate: data.preferredDate || '',
+        priority: data.priority || 'medium',
+        status: data.status || MaintenanceStatus.PENDING,
+        createdAt: convertTimestampToDate(data.createdAt as Timestamp | Date),
+        updatedAt: convertTimestampToDate(data.updatedAt as Timestamp | Date),
+        adminResponse: data.adminResponse || ''
+      } as MaintenanceRequest;
+    });
   } catch (error) {
     console.error('Error getting maintenance requests:', error)
     throw error
