@@ -1,67 +1,56 @@
-'use client';
+"use client"
 
-import React, { useEffect, useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Button } from "@/components/ui/button";
-import { RefreshCw } from "lucide-react";
-import { getAllGuestRequests } from '@/lib/firestore';
-import { toast } from 'react-hot-toast';
-import { format } from 'date-fns';
-import { RefreshButton } from '@/components/ui/refresh-button';
+import { useState, useEffect } from "react"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Button } from "@/components/ui/button"
+import { RefreshCw } from "lucide-react"
+import { toast } from "react-hot-toast"
+import { getAllGuestRequests } from "@/lib/firestore"
 
 interface GuestData {
-  id: string;
-  firstName: string;
-  lastName: string;
-  phoneNumber: string;
-  roomNumber: string;
-  purpose: string;
-  fromDate: string;
-  status: 'active' | 'checked_out';
-  tenantCode: string;
-  createdAt: Date;
-  checkoutTime?: Date;
+  id: string
+  firstName: string
+  lastName: string
+  phoneNumber: string
+  roomNumber: string
+  purpose: string
+  fromDate: string
+  status: 'active' | 'checked_out'
+  tenantCode: string
+  createdAt: Date
+  checkoutTime?: Date
 }
 
-const formatDate = (date: Date) => {
-  return new Date(date).toLocaleString('en-US', {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit'
-  });
-};
-
 export default function AdminGuestsPage() {
-  const [loading, setLoading] = useState(false);
-  const [guestRequests, setGuestRequests] = useState<GuestData[]>([]);
+  const [loading, setLoading] = useState(false)
+  const [guestRequests, setGuestRequests] = useState<GuestData[]>([])
 
   useEffect(() => {
-    fetchGuestRequests();
-  }, []);
+    fetchGuestRequests()
+  }, [])
 
   const fetchGuestRequests = async () => {
-    setLoading(true);
+    setLoading(true)
     try {
-      const requests = await getAllGuestRequests();
-      setGuestRequests(requests);
+      const requests = await getAllGuestRequests()
+      setGuestRequests(requests)
     } catch (error) {
-      console.error('Error fetching guest requests:', error);
-      toast.error('Failed to fetch guest requests');
+      console.error('Error fetching guest requests:', error)
+      toast.error('Failed to fetch guest requests')
     } finally {
-      setLoading(false);
+      setLoading(false)
     }
-  };
+  }
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
-      </div>
-    );
+  const formatDate = (date: Date) => {
+    return new Date(date).toLocaleString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    })
   }
 
   return (
@@ -170,5 +159,5 @@ export default function AdminGuestsPage() {
         </CardContent>
       </Card>
     </div>
-  );
+  )
 }

@@ -1,18 +1,18 @@
 "use client"
 
 import type React from "react"
-
 import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { UserPlus, Clock, X, Check, Plus, Trash, RefreshCw } from "lucide-react"
+import { UserPlus, Clock, X, Check, Plus, Trash, RefreshCw, AlertTriangle, DoorOpen } from "lucide-react"
 import { toast } from "react-hot-toast"
 import { getCheckoutCode, createGuestRequest, getUserActiveGuests, updateGuestCheckout } from "@/lib/firestore"
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import Image from "next/image"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog"
+import { Checkbox } from "@/components/ui/checkbox"
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { useAuth } from '@/lib/auth'
 
 interface GuestData {
@@ -30,14 +30,21 @@ interface GuestData {
   checkoutTime?: Date
 }
 
+interface AdditionalGuest {
+  firstName: string
+  lastName: string
+  phoneNumber: string
+}
+
 export default function GuestRegistrationPage() {
   const { user } = useAuth()
   const [loading, setLoading] = useState(false)
   const [activeGuests, setActiveGuests] = useState<GuestData[]>([])
   const [showConfirmationDialog, setShowConfirmationDialog] = useState(false)
   const [currentGuest, setCurrentGuest] = useState<GuestData | null>(null)
-  const [checkoutCode, setCheckoutCode] = useState<string | null>(null)
   const [checkoutCodeInput, setCheckoutCodeInput] = useState<string>('')
+  const [addMoreGuests, setAddMoreGuests] = useState(false)
+  const [additionalGuests, setAdditionalGuests] = useState<AdditionalGuest[]>([{ firstName: '', lastName: '', phoneNumber: '' }])
   const [formData, setFormData] = useState<Omit<GuestData, 'id' | 'status' | 'createdAt' | 'userId'>>({
     firstName: '',
     lastName: '',
@@ -50,7 +57,6 @@ export default function GuestRegistrationPage() {
 
   useEffect(() => {
     if (user) {
-      fetchCheckoutCode()
       fetchActiveGuests()
     }
   }, [user])
@@ -74,6 +80,23 @@ export default function GuestRegistrationPage() {
     }))
   }
 
+  const handleAdditionalGuestChange = (index: number, field: keyof AdditionalGuest, value: string) => {
+    const newAdditionalGuests = [...additionalGuests]
+    newAdditionalGuests[index] = {
+      ...newAdditionalGuests[index],
+      [field]: value
+    }
+    setAdditionalGuests(newAdditionalGuests)
+  }
+
+  const addNewAdditionalGuest = () => {
+    if (additionalGuests.length >= 2) {
+      toast.error("Maximum of 3 guests allowed (1 main + 2 additional)")
+      return
+    }
+    setAdditionalGuests([...additionalGuests, { firstName: '', lastName: '', phoneNumber: '' }])
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
@@ -83,16 +106,36 @@ export default function GuestRegistrationPage() {
         throw new Error('User not authenticated')
       }
 
-      // Create the guest request with status 'active'
-      const guestData = {
+      if (activeGuests.length + (addMoreGuests ? additionalGuests.length : 1) > 3) {
+        throw new Error('Maximum of 3 guests allowed')
+      }
+
+      // Create main guest
+      const mainGuestData = {
         ...formData,
         userId: user.uid,
         createdAt: new Date(),
-        status: 'active' // Set status as active immediately
+        status: 'active'
       }
 
-      await createGuestRequest(guestData)
-      toast.success("Guest registered successfully")
+      await createGuestRequest(mainGuestData)
+
+      // Create additional guests if enabled
+      if (addMoreGuests) {
+        for (const guest of additionalGuests) {
+          if (guest.firstName && guest.lastName && guest.phoneNumber) {
+            const additionalGuestData = {
+              ...mainGuestData,
+              firstName: guest.firstName,
+              lastName: guest.lastName,
+              phoneNumber: guest.phoneNumber
+            }
+            await createGuestRequest(additionalGuestData)
+          }
+        }
+      }
+
+      toast.success("Guest(s) registered successfully")
       
       // Reset form
       setFormData({
@@ -104,67 +147,52 @@ export default function GuestRegistrationPage() {
         fromDate: new Date().toISOString().split('T')[0],
         tenantCode: ''
       })
+      setAdditionalGuests([{ firstName: '', lastName: '', phoneNumber: '' }])
+      setAddMoreGuests(false)
 
-      // Refresh active guests list immediately
+      // Refresh active guests list
       await fetchActiveGuests()
     } catch (error) {
       console.error('Error submitting guest registration:', error)
-      toast.error("Failed to register guest")
+      toast.error(error instanceof Error ? error.message : "Failed to register guest")
     } finally {
       setLoading(false)
     }
   }
 
-  const fetchCheckoutCode = async () => {
-    try {
-      const code = await getCheckoutCode()
-      setCheckoutCode(code ? code.code : null)
-    } catch (error) {
-      console.error('Error fetching checkout code:', error)
-      toast.error('Failed to fetch checkout code')
-    }
-  }
-
-  const confirmGuest = (): void => {
-    if (currentGuest) {
-      // Add main guest
-      setActiveGuests([...activeGuests, currentGuest])
-
-      // Reset form and state
-      const form = document.getElementById("guestForm") as HTMLFormElement
-      if (form) form.reset()
-
-      setCurrentGuest(null)
-      setShowConfirmationDialog(false)
-
-      toast.success("Guest registered successfully")
-    }
-  }
-
   const handleCheckoutGuest = async (guestId: string) => {
-    if (checkoutCodeInput === '1005') {
-      try {
-        const guest = activeGuests.find(g => g.id === guestId);
-        if (!guest) {
-          throw new Error('Guest not found');
-        }
-        
-        await updateGuestCheckout(guestId);
-        toast.success(`${guest.firstName} ${guest.lastName} has been checked out successfully`);
-        setCheckoutCodeInput('');
-        // Refresh the active guests list after checkout
-        await fetchActiveGuests();
-      } catch (error) {
-        console.error('Error checking out guest:', error);
-        toast.error("Failed to check out guest");
+    try {
+      const guest = activeGuests.find(g => g.id === guestId)
+      if (!guest) {
+        throw new Error('Guest not found')
       }
-    } else {
-      toast.error("Invalid security PIN");
+
+      if (checkoutCodeInput === '1005') {
+        await updateGuestCheckout(guestId)
+        toast.success(`${guest.firstName} ${guest.lastName} has been checked out successfully`)
+        setCheckoutCodeInput('')
+        // Refresh the active guests list after checkout
+        await fetchActiveGuests()
+      } else {
+        toast.error("Invalid security PIN")
+      }
+    } catch (error) {
+      console.error('Error checking out guest:', error)
+      toast.error("Failed to check out guest")
     }
   }
 
   return (
     <div className="container mx-auto px-4 py-8">
+      <Alert variant="destructive" className="mb-6">
+        <AlertTriangle className="h-4 w-4" />
+        <AlertTitle>Important Notice</AlertTitle>
+        <AlertDescription>
+          Students are fully responsible for the behavior and actions of their guests.
+          A fee of R150 will be charged for any guest not signed out by 23:00.
+        </AlertDescription>
+      </Alert>
+
       <Card>
         <CardHeader>
           <div className="flex items-center justify-between">
@@ -272,8 +300,65 @@ export default function GuestRegistrationPage() {
                   />
                 </div>
 
+                <div className="flex items-center space-x-2">
+                  <Checkbox
+                    id="addMoreGuests"
+                    checked={addMoreGuests}
+                    onCheckedChange={(checked) => setAddMoreGuests(checked as boolean)}
+                  />
+                  <Label htmlFor="addMoreGuests">Add more guests</Label>
+                </div>
+
+                {addMoreGuests && (
+                  <div className="space-y-4">
+                    {additionalGuests.map((guest, index) => (
+                      <div key={index} className="border p-4 rounded-lg space-y-4">
+                        <h3 className="font-medium">Additional Guest {index + 1}</h3>
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="space-y-2">
+                            <Label>First Name</Label>
+                            <Input
+                              value={guest.firstName}
+                              onChange={(e) => handleAdditionalGuestChange(index, 'firstName', e.target.value)}
+                              required
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <Label>Last Name</Label>
+                            <Input
+                              value={guest.lastName}
+                              onChange={(e) => handleAdditionalGuestChange(index, 'lastName', e.target.value)}
+                              required
+                            />
+                          </div>
+                        </div>
+                        <div className="space-y-2">
+                          <Label>Phone Number</Label>
+                          <Input
+                            type="tel"
+                            value={guest.phoneNumber}
+                            onChange={(e) => handleAdditionalGuestChange(index, 'phoneNumber', e.target.value)}
+                            required
+                          />
+                        </div>
+                      </div>
+                    ))}
+                    {additionalGuests.length < 2 && (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={addNewAdditionalGuest}
+                        className="w-full"
+                      >
+                        <Plus className="h-4 w-4 mr-2" />
+                        Add Another Guest
+                      </Button>
+                    )}
+                  </div>
+                )}
+
                 <Button type="submit" className="w-full" disabled={loading}>
-                  {loading ? "Registering..." : "Register Guest"}
+                  {loading ? "Registering..." : "Register Guest(s)"}
                 </Button>
               </form>
             </TabsContent>
@@ -305,23 +390,21 @@ export default function GuestRegistrationPage() {
                             </div>
                           </div>
                           {guest.status === 'active' && (
-                            <div className="flex items-center gap-2">
-                              <div className="flex flex-col gap-1">
-                                <Input
-                                  type="password"
-                                  placeholder="Security PIN"
-                                  value={checkoutCodeInput}
-                                  onChange={(e) => setCheckoutCodeInput(e.target.value)}
-                                  className="w-32"
-                                />
-                                <span className="text-xs text-muted-foreground">Enter security PIN to check out</span>
-                              </div>
+                            <div className="flex flex-col items-end gap-2">
+                              <Input
+                                type="password"
+                                placeholder="Security PIN"
+                                value={checkoutCodeInput}
+                                onChange={(e) => setCheckoutCodeInput(e.target.value)}
+                                className="w-32"
+                              />
                               <Button 
                                 variant="destructive" 
                                 size="sm" 
                                 onClick={() => handleCheckoutGuest(guest.id)}
+                                className="flex items-center gap-2"
                               >
-                                <X className="h-4 w-4 mr-1" />
+                                <DoorOpen className="h-4 w-4" />
                                 Check-out
                               </Button>
                             </div>
@@ -336,56 +419,6 @@ export default function GuestRegistrationPage() {
           </Tabs>
         </CardContent>
       </Card>
-
-      <Dialog open={showConfirmationDialog} onOpenChange={setShowConfirmationDialog}>
-        <DialogContent className="sm:max-w-[425px]">
-          <div className="relative">
-            <Image
-              src="/my-domain-logo.png"
-              alt="My Domain Logo"
-              width={200}
-              height={100}
-              className="absolute top-4 right-4"
-              priority
-            />
-            <DialogHeader className="mb-16 pr-16">
-              <DialogTitle>Confirm Guest Registration</DialogTitle>
-            </DialogHeader>
-          </div>
-          
-          <div className="space-y-4">
-            <div className="border-b pb-4">
-              <h3 className="font-semibold text-lg mb-3">Guest Details</h3>
-              <div className="space-y-2">
-                <p><span className="font-semibold">Full Name:</span> {currentGuest?.firstName} {currentGuest?.lastName}</p>
-                <p><span className="font-semibold">Phone Number:</span> {currentGuest?.phoneNumber}</p>
-                <p><span className="font-semibold">Room Number:</span> {currentGuest?.roomNumber}</p>
-                <p><span className="font-semibold">Date:</span> {currentGuest?.fromDate ? new Date(currentGuest.fromDate).toLocaleDateString() : 'Not specified'}</p>
-                <p><span className="font-semibold">Purpose:</span> {currentGuest?.purpose}</p>
-              </div>
-            </div>
-          </div>
-
-          <div className="flex justify-end gap-3 mt-6">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => setShowConfirmationDialog(false)}
-            >
-              Cancel
-            </Button>
-            <Button
-              type="button"
-              onClick={() => {
-                confirmGuest()
-                setShowConfirmationDialog(false)
-              }}
-            >
-              Confirm
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
     </div>
   )
 }
