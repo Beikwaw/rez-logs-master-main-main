@@ -1,18 +1,18 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { getAllManagementRequests, getTodayManagementRequests, approveManagementRequest, rejectManagementRequest } from '@/lib/firestore';
+import { getAllManagementRequests, getTodayManagementRequests, approveManagementRequest, rejectManagementRequest, ManagementRequest } from '@/lib/firestore';
 import { useAuth } from '@/lib/auth';
 import { format } from 'date-fns';
 import { toast } from 'react-hot-toast';
 
 export default function AdminManagementPage() {
   const { user } = useAuth();
-  const [requests, setRequests] = useState([]);
-  const [todayRequests, setTodayRequests] = useState([]);
+  const [requests, setRequests] = useState<ManagementRequest[]>([]);
+  const [todayRequests, setTodayRequests] = useState<ManagementRequest[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [selectedRequest, setSelectedRequest] = useState(null);
+  const [selectedRequest, setSelectedRequest] = useState<ManagementRequest | null>(null);
   const [adminResponse, setAdminResponse] = useState('');
   const [showHistory, setShowHistory] = useState(false);
 

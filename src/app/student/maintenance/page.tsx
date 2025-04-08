@@ -6,7 +6,7 @@ import { MaintenanceRequestForm } from "@/components/forms/MaintenanceRequestFor
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Plus } from "lucide-react"
-import { getUserMaintenanceRequests } from "@/lib/firestore"
+import { getUserMaintenanceRequests, MaintenanceStatus } from "@/lib/firestore"
 import { format } from "date-fns"
 
 interface MaintenanceRequest {
@@ -14,7 +14,7 @@ interface MaintenanceRequest {
   title: string
   description: string
   priority: 'low' | 'medium' | 'high'
-  status: string
+  status: MaintenanceStatus
   createdAt: Date
   category: 'bedroom' | 'bathroom' | 'kitchen' | 'other'
   roomNumber: string

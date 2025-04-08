@@ -45,9 +45,16 @@ export const ComplaintStatus = {
   REJECTED: 'rejected'
 } as const;
 
+export const ManagementStatus = {
+  PENDING: 'pending',
+  APPROVED: 'approved',
+  REJECTED: 'rejected'
+} as const;
+
 export type SleepoverStatus = typeof SleepoverStatus[keyof typeof SleepoverStatus];
 export type MaintenanceStatus = typeof MaintenanceStatus[keyof typeof MaintenanceStatus];
 export type ComplaintStatus = typeof ComplaintStatus[keyof typeof ComplaintStatus];
+export type ManagementStatus = typeof ManagementStatus[keyof typeof ManagementStatus];
 
 export interface AdminData {
   id: string;
@@ -139,9 +146,11 @@ export interface MaintenanceRequest {
   preferredDate?: string;
   priority: 'low' | 'medium' | 'high';
   status: MaintenanceStatus;
-  createdAt: Timestamp | Date;
-  updatedAt: Timestamp | Date;
+  createdAt: Date;
+  updatedAt: Date;
   adminResponse?: string;
+  tenantCode?: string;
+  images?: string[];
 }
 
 export interface GuestRegistration {
@@ -269,6 +278,21 @@ export interface GuestRequest {
   userId: string;
   createdAt: Date;
   checkoutTime?: Date;
+}
+
+export interface ManagementRequest {
+  id: string;
+  userId: string;
+  tenantCode: string;
+  name: string;
+  email: string;
+  phone: string;
+  type: string;
+  description: string;
+  status: ManagementStatus;
+  createdAt: Date;
+  updatedAt: Date;
+  adminResponse?: string;
 }
 
 // Helper function to convert Timestamp to Date
@@ -949,37 +973,49 @@ export async function assignStaffToComplaint(complaintId: string, staffId: strin
   });
 }
 
-export async function getAllMaintenanceRequests() {
+export async function getAllMaintenanceRequests(): Promise<ManagementRequest[]> {
   try {
-    const maintenanceRef = collection(db, 'maintenance_requests')
-    const q = query(
-      maintenanceRef,
-      orderBy('createdAt', 'desc')
-    )
-    const querySnapshot = await getDocs(q)
-    return querySnapshot.docs.map(doc => {
-      const data = doc.data();
-      return {
-        id: doc.id,
-        userId: data.userId || '',
-        title: data.title || '',
-        description: data.description || '',
-        category: data.category || 'other',
-        roomNumber: data.roomNumber || '',
-        timeSlot: data.timeSlot || '',
-        preferredDate: data.preferredDate || '',
-        priority: data.priority || 'medium',
-        status: data.status || MaintenanceStatus.PENDING,
-        createdAt: convertTimestampToDate(data.createdAt as Timestamp | Date),
-        updatedAt: convertTimestampToDate(data.updatedAt as Timestamp | Date),
-        adminResponse: data.adminResponse || ''
-      } as MaintenanceRequest;
-    });
+    const querySnapshot = await getDocs(
+      query(
+        collection(db, 'management_requests'),
+        orderBy('createdAt', 'desc')
+      )
+    );
+
+    return querySnapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data(),
+      createdAt: convertTimestampToDate(doc.data().createdAt)
+    })) as ManagementRequest[];
   } catch (error) {
-    console.error('Error getting maintenance requests:', error)
-    throw error
+    console.error('Error getting management requests:', error);
+    throw error;
   }
-}
+};
+
+export const getTodayManagementRequests = async (): Promise<ManagementRequest[]> => {
+  try {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const querySnapshot = await getDocs(
+      query(
+        collection(db, 'management_requests'),
+        where('createdAt', '>=', today),
+        orderBy('createdAt', 'desc')
+      )
+    );
+
+    return querySnapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data(),
+      createdAt: convertTimestampToDate(doc.data().createdAt)
+    })) as ManagementRequest[];
+  } catch (error) {
+    console.error('Error getting today\'s management requests:', error);
+    throw error;
+  }
+};
 
 export const updateMaintenanceStatus = async (
   requestId: string, 
@@ -1710,387 +1746,6 @@ export async function getAllGuestSignIns() {
   }
 }
 
-export async function getTodayGuestSignIns() {
-  try {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    
-    const querySnapshot = await getDocs(
-      query(
-        collection(db, 'guest_sign_ins'),
-        where('signInTime', '>=', Timestamp.fromDate(today))
-      )
-    );
-    
-    // Helper function to safely convert Firestore timestamp to Date
-    const toDate = (timestamp: any): Date | undefined => {
-      if (!timestamp) return undefined;
-      if (timestamp instanceof Timestamp) return timestamp.toDate();
-      if (timestamp instanceof Date) return timestamp;
-      return new Date(timestamp);
-    };
-    
-    return querySnapshot.docs.map(doc => {
-      const data = doc.data();
-      const signInTime = toDate(data.signInTime);
-      
-      // Only return documents that have a valid signInTime
-      if (!signInTime) return null;
-      
-      return {
-        id: doc.id,
-        guestName: data.guestName || '',
-        guestSurname: data.guestSurname || '',
-        tenantCode: data.tenantCode || '',
-        roomNumber: data.roomNumber || '',
-        guestPhoneNumber: data.guestPhoneNumber || '',
-        signInTime,
-        signOutTime: toDate(data.signOutTime),
-        additionalGuests: data.additionalGuests || []
-      };
-    }).filter(Boolean); // Remove any null entries
-  } catch (error) {
-    console.error('Error fetching today\'s guest sign-ins:', error);
-    throw error;
-  }
-}
-
-export async function getTodayMaintenanceRequests() {
-  try {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const tomorrow = new Date(today);
-    tomorrow.setDate(tomorrow.getDate() + 1);
-
-    const maintenanceRef = collection(db, 'maintenance_requests');
-    const q = query(
-      maintenanceRef,
-      where('createdAt', '>=', Timestamp.fromDate(today)),
-      where('createdAt', '<', Timestamp.fromDate(tomorrow)),
-      orderBy('createdAt', 'desc')
-    );
-
-    const querySnapshot = await getDocs(q);
-    return querySnapshot.docs.map(doc => {
-      const data = doc.data();
-      return {
-        id: doc.id,
-        ...data,
-        createdAt: convertTimestampToDate(data.createdAt as Timestamp | Date),
-        updatedAt: convertTimestampToDate(data.updatedAt as Timestamp | Date)
-      };
-    });
-  } catch (error) {
-    console.error('Error fetching today\'s maintenance requests:', error);
-    throw error;
-  }
-}
-
-export async function getAllManagementRequests() {
-  const managementRef = collection(db, 'management_requests');
-  const q = query(managementRef, orderBy('createdAt', 'desc'));
-  const querySnapshot = await getDocs(q);
-  return querySnapshot.docs.map(doc => {
-    const data = doc.data();
-    return {
-      id: doc.id,
-      ...data,
-      createdAt: convertTimestampToDate(data.createdAt as Timestamp | Date),
-      updatedAt: convertTimestampToDate(data.updatedAt as Timestamp | Date)
-    };
-  });
-}
-
-export async function approveManagementRequest(requestId: string, adminResponse: string) {
-  const requestRef = doc(db, 'management_requests', requestId);
-  await updateDoc(requestRef, {
-    status: 'approved',
-    adminResponse,
-    updatedAt: serverTimestamp()
-  });
-}
-
-export async function rejectManagementRequest(requestId: string, adminResponse: string) {
-  const requestRef = doc(db, 'management_requests', requestId);
-  await updateDoc(requestRef, {
-    status: 'rejected',
-    adminResponse,
-    updatedAt: serverTimestamp()
-  });
-}
-
-export async function getTodayManagementRequests() {
-  try {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const tomorrow = new Date(today);
-    tomorrow.setDate(tomorrow.getDate() + 1);
-
-    const managementRef = collection(db, 'management_requests');
-    const q = query(
-      managementRef,
-      where('createdAt', '>=', Timestamp.fromDate(today)),
-      where('createdAt', '<', Timestamp.fromDate(tomorrow)),
-      orderBy('createdAt', 'desc')
-    );
-
-    const querySnapshot = await getDocs(q);
-    return querySnapshot.docs.map(doc => {
-      const data = doc.data();
-      return {
-        id: doc.id,
-        ...data,
-        createdAt: convertTimestampToDate(data.createdAt as Timestamp | Date),
-        updatedAt: convertTimestampToDate(data.updatedAt as Timestamp | Date)
-      };
-    });
-  } catch (error) {
-    console.error('Error fetching today\'s management requests:', error);
-    throw error;
-  }
-}
-
-// Add a new function for real-time updates
-export function subscribeToSleepoverRequests(userId: string, callback: (requests: SleepoverRequest[]) => void) {
-  if (!userId) return () => {};
-
-  const sleepoverRef = collection(db, 'sleepover_requests');
-  const q = query(
-    sleepoverRef,
-    where('userId', '==', userId),
-    orderBy('createdAt', 'desc'),
-    orderBy('__name__', 'asc')
-  );
-
-  const unsubscribe = onSnapshot(q, (querySnapshot) => {
-    const requests = querySnapshot.docs.map(doc => {
-      const data = doc.data();
-      return {
-        id: doc.id,
-        userId: data.userId,
-        tenantCode: data.tenantCode,
-        guestName: data.guestName,
-        guestSurname: data.guestSurname,
-        guestPhoneNumber: data.guestPhoneNumber,
-        roomNumber: data.roomNumber,
-        additionalGuests: data.additionalGuests || [],
-        startDate: convertTimestampToDate(data.startDate as Timestamp | Date),
-        endDate: convertTimestampToDate(data.endDate as Timestamp | Date),
-        status: data.status || 'pending',
-        createdAt: convertTimestampToDate(data.createdAt as Timestamp | Date),
-        updatedAt: convertTimestampToDate(data.updatedAt as Timestamp | Date),
-        adminResponse: data.adminResponse,
-        securityCode: data.securityCode,
-        isActive: data.isActive,
-        signOutTime: data.signOutTime ? convertTimestampToDate(data.signOutTime as Timestamp | Date) : undefined,
-        durationOfStay: data.durationOfStay
-      } as SleepoverRequest;
-    });
-    callback(requests);
-  }, (error) => {
-    console.error('Error in real-time updates:', error);
-  });
-
-  return unsubscribe;
-}
-
-export async function checkoutSleepoverGuest(userId: string) {
-  if (!userId) {
-    throw new Error('User ID is required');
-  }
-
-  try {
-    const sleepoverRef = collection(db, 'sleepover_requests');
-    const q = query(
-      sleepoverRef,
-      where('userId', '==', userId),
-      where('status', '==', 'approved')
-    );
-
-    const querySnapshot = await getDocs(q);
-    
-    if (querySnapshot.empty) {
-      throw new Error('No approved sleepover found');
-    }
-
-    // Find the most recent active sleepover
-    const activeSleepover = querySnapshot.docs
-      .map(doc => {
-        const data = doc.data();
-        return {
-          id: doc.id,
-          guestName: data.guestName || '',
-          startDate: convertTimestampToDate(data.startDate),
-          endDate: convertTimestampToDate(data.endDate),
-          signOutTime: data.signOutTime ? convertTimestampToDate(data.signOutTime) : undefined
-        };
-      })
-      .find(sleepover => {
-        const now = new Date();
-        const isWithinDateRange = now >= sleepover.startDate && 
-          now <= new Date(sleepover.endDate.getFullYear(), sleepover.endDate.getMonth(), sleepover.endDate.getDate(), 23, 59, 59);
-        const notSignedOut = !sleepover.signOutTime;
-        return isWithinDateRange && notSignedOut;
-      });
-
-    if (!activeSleepover) {
-      throw new Error('No active sleepover found. Please ensure your sleepover request is approved and within the valid date range.');
-    }
-
-    // Update the sleepover request
-    await updateDoc(doc(db, 'sleepover_requests', activeSleepover.id), {
-      isActive: false,
-      signOutTime: serverTimestamp(),
-      status: 'completed',
-      updatedAt: serverTimestamp()
-    });
-
-    // Create a notification for the user
-    await createNotification({
-      userId,
-      title: 'Sleepover Checkout',
-      message: `Guest ${activeSleepover.guestName} has been checked out successfully`,
-      type: 'sleepover',
-      read: false
-    });
-
-    return {
-      message: 'Guest checked out successfully',
-      checkoutTime: new Date()
-    };
-  } catch (error) {
-    console.error('Error checking out sleepover guest:', error);
-    throw error;
-  }
-}
-
-export async function deleteAnnouncement(announcementId: string): Promise<void> {
-  try {
-    const announcementRef = doc(db, 'announcements', announcementId);
-    await deleteDoc(announcementRef);
-  } catch (error) {
-    console.error('Error deleting announcement:', error);
-    throw new Error('Failed to delete announcement');
-  }
-}
-
-export async function updateAnnouncement(announcementId: string, data: Partial<Announcement>): Promise<void> {
-  try {
-    const announcementRef = doc(db, 'announcements', announcementId);
-    await updateDoc(announcementRef, {
-      ...data,
-      updatedAt: serverTimestamp()
-    });
-  } catch (error) {
-    console.error('Error updating announcement:', error);
-    throw new Error('Failed to update announcement');
-  }
-}
-
-export async function getAllApplications() {
-  const applicationsRef = collection(db, 'applications');
-  const q = query(applicationsRef, orderBy('createdAt', 'desc'));
-  const querySnapshot = await getDocs(q);
-  return querySnapshot.docs.map(doc => ({
-    id: doc.id,
-    ...doc.data(),
-    createdAt: convertTimestampToDate(doc.data().createdAt as Timestamp | Date)
-  }));
-}
-
-export async function approveApplication(applicationId: string, adminResponse: string) {
-  const applicationRef = doc(db, 'applications', applicationId);
-  await updateDoc(applicationRef, {
-    status: 'approved',
-    updatedAt: new Date(),
-    adminResponse
-  });
-}
-
-export async function rejectApplication(applicationId: string, adminResponse: string) {
-  const applicationRef = doc(db, 'applications', applicationId);
-  await updateDoc(applicationRef, {
-    status: 'rejected',
-    updatedAt: new Date(),
-    adminResponse
-  });
-}
-
-export async function signOutGuest(guestId: string) {
-  const guestRef = doc(db, 'guests', guestId);
-  await updateDoc(guestRef, {
-    status: 'checked-out',
-    checkOutTime: new Date(),
-  });
-}
-
-export async function approveSleepoverRequest(requestId: string) {
-  const requestRef = doc(db, 'sleepover_requests', requestId);
-  await updateDoc(requestRef, {
-    status: 'approved',
-    updatedAt: new Date(),
-  });
-}
-
-export async function rejectSleepoverRequest(requestId: string) {
-  const requestRef = doc(db, 'sleepover_requests', requestId);
-  await updateDoc(requestRef, {
-    status: 'rejected',
-    updatedAt: new Date(),
-  });
-}
-
-export async function createGuestRequest(data: {
-  firstName: string;
-  lastName: string;
-  phoneNumber: string;
-  roomNumber: string;
-  purpose: string;
-  fromDate: string;
-  tenantCode: string;
-  userId: string;
-  status: 'active' | 'checked_out';
-  createdAt: Date;
-}) {
-  try {
-    const guestRef = doc(collection(db, 'guest_requests'));
-    await setDoc(guestRef, {
-      ...data,
-      createdAt: serverTimestamp(),
-    });
-    return guestRef.id;
-  } catch (error) {
-    console.error('Error creating guest request:', error);
-    throw error;
-  }
-}
-
-export async function getUserActiveGuests(userId: string) {
-  try {
-    const guestsRef = collection(db, 'guest_requests');
-    const q = query(
-      guestsRef,
-      where('userId', '==', userId),
-      where('status', '==', 'active')
-    );
-    
-    const querySnapshot = await getDocs(q);
-    return querySnapshot.docs.map(doc => {
-      const data = doc.data();
-      return {
-        id: doc.id,
-        ...data,
-        createdAt: convertTimestampToDate(data.createdAt as Timestamp | Date),
-        checkoutTime: data.checkoutTime?.toDate(),
-        fromDate: data.fromDate || new Date().toISOString().split('T')[0]
-      };
-    });
-  } catch (error) {
-    console.error('Error fetching active guests:', error);
-    throw error;
-  }
-}
-
 export async function updateGuestCheckout(guestId: string) {
   try {
     const guestRef = doc(db, 'guest_requests', guestId);
@@ -2185,3 +1840,230 @@ async function getComplaintsForDateRange(startDate: Date, endDate: Date): Promis
     createdAt: convertTimestampToDate(doc.data().createdAt as Timestamp | Date)
   })) as Complaint[]
 }
+
+export async function deleteAnnouncement(announcementId: string): Promise<void> {
+  try {
+    const announcementRef = doc(db, 'announcements', announcementId);
+    await deleteDoc(announcementRef);
+  } catch (error) {
+    console.error('Error deleting announcement:', error);
+    throw new Error('Failed to delete announcement');
+  }
+}
+
+export async function updateAnnouncement(announcementId: string, data: Partial<Announcement>): Promise<void> {
+  try {
+    const announcementRef = doc(db, 'announcements', announcementId);
+    await updateDoc(announcementRef, {
+      ...data,
+      updatedAt: serverTimestamp()
+    });
+  } catch (error) {
+    console.error('Error updating announcement:', error);
+    throw new Error('Failed to update announcement');
+  }
+}
+
+export async function getAllApplications() {
+  const applicationsRef = collection(db, 'applications');
+  const q = query(applicationsRef, orderBy('createdAt', 'desc'));
+  const querySnapshot = await getDocs(q);
+  return querySnapshot.docs.map(doc => ({
+    id: doc.id,
+    ...doc.data(),
+    createdAt: convertTimestampToDate(doc.data().createdAt as Timestamp | Date)
+  }));
+}
+
+export async function approveApplication(applicationId: string, adminResponse: string) {
+  const applicationRef = doc(db, 'applications', applicationId);
+  await updateDoc(applicationRef, {
+    status: 'approved',
+    updatedAt: new Date(),
+    adminResponse
+  });
+}
+
+export async function rejectApplication(applicationId: string, adminResponse: string) {
+  const applicationRef = doc(db, 'applications', applicationId);
+  await updateDoc(applicationRef, {
+    status: 'rejected',
+    updatedAt: new Date(),
+    adminResponse
+  });
+}
+
+export async function approveSleepoverRequest(requestId: string) {
+  const requestRef = doc(db, 'sleepover_requests', requestId);
+  await updateDoc(requestRef, {
+    status: 'approved',
+    updatedAt: new Date(),
+  });
+}
+
+export async function rejectSleepoverRequest(requestId: string) {
+  const requestRef = doc(db, 'sleepover_requests', requestId);
+  await updateDoc(requestRef, {
+    status: 'rejected',
+    updatedAt: new Date(),
+  });
+}
+
+export async function createGuestRequest(data: {
+  firstName: string;
+  lastName: string;
+  phoneNumber: string;
+  roomNumber: string;
+  purpose: string;
+  fromDate: string;
+  tenantCode: string;
+  userId: string;
+  status: 'active' | 'checked_out';
+  createdAt: Date;
+}) {
+  try {
+    const guestRef = doc(collection(db, 'guest_requests'));
+    await setDoc(guestRef, {
+      ...data,
+      createdAt: serverTimestamp(),
+    });
+    return guestRef.id;
+  } catch (error) {
+    console.error('Error creating guest request:', error);
+    throw error;
+  }
+}
+
+export async function getUserActiveGuests(userId: string) {
+  try {
+    const guestsRef = collection(db, 'guest_requests');
+    const q = query(
+      guestsRef,
+      where('userId', '==', userId),
+      where('status', '==', 'active')
+    );
+    
+    const querySnapshot = await getDocs(q);
+    return querySnapshot.docs.map(doc => {
+      const data = doc.data();
+      return {
+        id: doc.id,
+        ...data,
+        createdAt: convertTimestampToDate(data.createdAt as Timestamp | Date),
+        checkoutTime: data.checkoutTime?.toDate(),
+        fromDate: data.fromDate || new Date().toISOString().split('T')[0]
+      };
+    });
+  } catch (error) {
+    console.error('Error fetching active guests:', error);
+    throw error;
+  }
+}
+
+export async function checkoutSleepoverGuest(userId: string) {
+  if (!userId) {
+    throw new Error('User ID is required');
+  }
+
+  try {
+    const sleepoverRef = collection(db, 'sleepover_requests');
+    const q = query(
+      sleepoverRef,
+      where('userId', '==', userId),
+      where('status', '==', 'approved')
+    );
+
+    const querySnapshot = await getDocs(q);
+    
+    if (querySnapshot.empty) {
+      throw new Error('No approved sleepover found');
+    }
+
+    // Find the most recent active sleepover
+    const activeSleepover = querySnapshot.docs
+      .map(doc => {
+        const data = doc.data();
+        return {
+          id: doc.id,
+          guestName: data.guestName || '',
+          startDate: convertTimestampToDate(data.startDate),
+          endDate: convertTimestampToDate(data.endDate),
+          signOutTime: data.signOutTime ? convertTimestampToDate(data.signOutTime) : undefined
+        };
+      })
+      .find(sleepover => {
+        const now = new Date();
+        const isWithinDateRange = now >= sleepover.startDate && 
+          now <= new Date(sleepover.endDate.getFullYear(), sleepover.endDate.getMonth(), sleepover.endDate.getDate(), 23, 59, 59);
+        const notSignedOut = !sleepover.signOutTime;
+        return isWithinDateRange && notSignedOut;
+      });
+
+    if (!activeSleepover) {
+      throw new Error('No active sleepover found. Please ensure your sleepover request is approved and within the valid date range.');
+    }
+
+    // Update the sleepover request
+    await updateDoc(doc(db, 'sleepover_requests', activeSleepover.id), {
+      isActive: false,
+      signOutTime: serverTimestamp(),
+      status: 'completed',
+      updatedAt: serverTimestamp()
+    });
+
+    // Create a notification for the user
+    await createNotification({
+      userId,
+      title: 'Sleepover Checkout',
+      message: `Guest ${activeSleepover.guestName} has been checked out successfully`,
+      type: 'sleepover',
+      read: false
+    });
+
+    return {
+      message: 'Guest checked out successfully',
+      checkoutTime: new Date()
+    };
+  } catch (error) {
+    console.error('Error checking out sleepover guest:', error);
+    throw error;
+  }
+}
+
+export async function approveManagementRequest(requestId: string, adminResponse: string) {
+  const requestRef = doc(db, 'management_requests', requestId);
+  await updateDoc(requestRef, {
+    status: ManagementStatus.APPROVED,
+    adminResponse,
+    updatedAt: serverTimestamp()
+  });
+}
+
+export async function rejectManagementRequest(requestId: string, adminResponse: string) {
+  const requestRef = doc(db, 'management_requests', requestId);
+  await updateDoc(requestRef, {
+    status: ManagementStatus.REJECTED,
+    adminResponse,
+    updatedAt: serverTimestamp()
+  });
+}
+
+export const getAllManagementRequests = async (): Promise<ManagementRequest[]> => {
+  try {
+    const querySnapshot = await getDocs(
+      query(
+        collection(db, 'management_requests'),
+        orderBy('createdAt', 'desc')
+      )
+    );
+
+    return querySnapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data(),
+      createdAt: convertTimestampToDate(doc.data().createdAt)
+    })) as ManagementRequest[];
+  } catch (error) {
+    console.error('Error getting management requests:', error);
+    throw error;
+  }
+};
