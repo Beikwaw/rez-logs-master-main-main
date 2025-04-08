@@ -103,19 +103,5 @@ service cloud.firestore {
       allow update: if isAdmin();
       allow delete: if isAdmin();
     }
-
-    // Finance rules
-    match /payments/{paymentId} {
-      allow read: if isOwner(resource.data.userId) || isAdmin();
-      allow create: if isAdmin();
-      allow update: if isAdmin();
-      allow delete: if isAdmin();
-    }
-
-    match /financial_reports/{reportId} {
-      allow read: if isOwner(resource.data.userId) || isAdmin();
-      allow create: if isAdmin();
-      allow delete: if isAdmin();
-    }
   }
 }
