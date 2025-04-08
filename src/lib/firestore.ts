@@ -33,6 +33,7 @@ export interface AdminData {
   updatedAt: Date;
   lastLogin?: Date;
   permissions?: string[];
+  isSuperAdmin: boolean;
 }
 
 export interface UserData {
@@ -437,17 +438,37 @@ export const deleteUser = async (userId: string) => {
 };
 
 // Admin functions
-export const createAdmin = async (adminData: Omit<AdminData, 'id' | 'createdAt' | 'updatedAt'>) => {
-  const adminsRef = collection(db, ADMINS_COLLECTION);
-  const now = new Date();
-  
-  const docRef = await addDoc(adminsRef, {
-    ...adminData,
-    createdAt: now,
-    updatedAt: now
-  });
+export const createAdmin = async (adminData: Omit<AdminData, 'id' | 'createdAt' | 'updatedAt'>): Promise<string> => {
+  try {
+    // Check if trying to create a superadmin
+    if (adminData.type === 'superadmin') {
+      // Check if a superadmin already exists
+      const superadminQuery = query(
+        collection(db, ADMINS_COLLECTION),
+        where('type', '==', 'superadmin')
+      );
+      const superadminSnapshot = await getDocs(superadminQuery);
+      
+      if (!superadminSnapshot.empty) {
+        throw new Error('A superadmin already exists. Only one superadmin is allowed.');
+      }
+    }
 
-  return docRef.id;
+    const adminRef = doc(collection(db, ADMINS_COLLECTION));
+    const newAdmin: AdminData = {
+      ...adminData,
+      id: adminRef.id,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      isSuperAdmin: adminData.type === 'superadmin'
+    };
+
+    await setDoc(adminRef, newAdmin);
+    return adminRef.id;
+  } catch (error) {
+    console.error('Error creating admin:', error);
+    throw error;
+  }
 };
 
 export const getAdminByUserId = async (userId: string) => {
@@ -486,19 +507,67 @@ export const getAllAdmins = async () => {
   });
 };
 
-export const updateAdmin = async (adminId: string, updates: Partial<Omit<AdminData, 'id'>>) => {
-  const adminRef = doc(db, ADMINS_COLLECTION, adminId);
-  const now = new Date();
-  
-  await updateDoc(adminRef, {
-    ...updates,
-    updatedAt: now
-  });
+export const updateAdmin = async (adminId: string, adminData: Partial<AdminData>): Promise<void> => {
+  try {
+    const adminRef = doc(db, ADMINS_COLLECTION, adminId);
+    const adminDoc = await getDoc(adminRef);
+    
+    if (!adminDoc.exists()) {
+      throw new Error('Admin not found');
+    }
+
+    const currentAdmin = adminDoc.data() as AdminData;
+    
+    // Prevent changing superadmin status
+    if (currentAdmin.type === 'superadmin' && adminData.type !== 'superadmin') {
+      throw new Error('Cannot change superadmin status');
+    }
+
+    // Prevent creating another superadmin
+    if (adminData.type === 'superadmin' && currentAdmin.type !== 'superadmin') {
+      const superadminQuery = query(
+        collection(db, ADMINS_COLLECTION),
+        where('type', '==', 'superadmin')
+      );
+      const superadminSnapshot = await getDocs(superadminQuery);
+      
+      if (!superadminSnapshot.empty) {
+        throw new Error('A superadmin already exists. Only one superadmin is allowed.');
+      }
+    }
+
+    await updateDoc(adminRef, {
+      ...adminData,
+      updatedAt: new Date(),
+      isSuperAdmin: adminData.type === 'superadmin' || currentAdmin.type === 'superadmin'
+    });
+  } catch (error) {
+    console.error('Error updating admin:', error);
+    throw error;
+  }
 };
 
-export const deleteAdmin = async (adminId: string) => {
-  const adminRef = doc(db, ADMINS_COLLECTION, adminId);
-  await deleteDoc(adminRef);
+export const deleteAdmin = async (adminId: string): Promise<void> => {
+  try {
+    const adminRef = doc(db, ADMINS_COLLECTION, adminId);
+    const adminDoc = await getDoc(adminRef);
+    
+    if (!adminDoc.exists()) {
+      throw new Error('Admin not found');
+    }
+
+    const adminData = adminDoc.data() as AdminData;
+    
+    // Prevent deleting the superadmin
+    if (adminData.type === 'superadmin') {
+      throw new Error('Cannot delete the superadmin');
+    }
+
+    await deleteDoc(adminRef);
+  } catch (error) {
+    console.error('Error deleting admin:', error);
+    throw error;
+  }
 };
 
 export const updateAdminLastLogin = async (adminId: string) => {
