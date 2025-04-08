@@ -41,7 +41,8 @@ export const MaintenanceStatus = {
 export const ComplaintStatus = {
   PENDING: 'pending',
   IN_PROGRESS: 'in_progress',
-  RESOLVED: 'resolved'
+  RESOLVED: 'resolved',
+  REJECTED: 'rejected'
 } as const;
 
 export type SleepoverStatus = typeof SleepoverStatus[keyof typeof SleepoverStatus];
@@ -180,65 +181,66 @@ interface FirestoreUser {
 }
 
 export interface DailyReport {
-  date: Date
+  date: Date;
   sleepovers: {
-    total: number
-    pending: number
-    approved: number
-    denied: number
-  }
+    total: number;
+    pending: number;
+    approved: number;
+    denied: number;
+  };
   maintenance: {
-    total: number
-    pending: number
-    inProgress: number
-    completed: number
-  }
+    total: number;
+    pending: number;
+    inProgress: number;
+    completed: number;
+  };
   complaints: {
-    total: number
-    pending: number
-    resolved: number
-  }
+    total: number;
+    pending: number;
+    resolved: number;
+  };
 }
 
-export interface DetailedReport extends Omit<DailyReport, 'sleepovers' | 'maintenance' | 'complaints'> {
+export interface DetailedReport {
+  date: Date;
   sleepovers: {
-    total: number
-    pending: number
-    resolved: number
-    denied: number
-    items: {
-      id: string
-      studentName: string
-      date: Date
-      status: 'pending' | 'resolved' | 'denied'
-      details: string
-    }[]
-  }
+    total: number;
+    pending: number;
+    resolved: number;
+    denied: number;
+    items: Array<{
+      id: string;
+      studentName: string;
+      date: Date;
+      status: SleepoverStatus;
+      details: string;
+    }>;
+  };
   maintenance: {
-    total: number
-    pending: number
-    inProgress: number
-    completed: number
-    items: {
-      id: string
-      title: string
-      description: string
-      status: 'pending' | 'inProgress' | 'completed'
-      createdAt: Date
-    }[]
-  }
+    total: number;
+    pending: number;
+    inProgress: number;
+    completed: number;
+    items: Array<{
+      id: string;
+      title: string;
+      description: string;
+      status: MaintenanceStatus;
+      createdAt: Date;
+    }>;
+  };
   complaints: {
-    total: number
-    pending: number
-    resolved: number
-    items: {
-      id: string
-      title: string
-      description: string
-      status: 'pending' | 'resolved'
-      createdAt: Date
-    }[]
-  }
+    total: number;
+    pending: number;
+    resolved: number;
+    items: Array<{
+      id: string;
+      title: string;
+      description: string;
+      status: ComplaintStatus;
+      createdAt: Date;
+    }>;
+  };
 }
 
 export interface Announcement {
@@ -254,18 +256,18 @@ export interface Announcement {
   createdByName?: string
 }
 
-// Helper functions for type conversion
-const toTimestamp = (date: Date | Timestamp | undefined): Timestamp => {
+// Helper function to convert Timestamp to Date
+const convertTimestampToDate = (timestamp: Timestamp | Date | undefined): Date => {
+  if (!timestamp) return new Date();
+  if (timestamp instanceof Date) return timestamp;
+  return timestamp.toDate();
+};
+
+// Helper function to convert Date to Timestamp
+const convertDateToTimestamp = (date: Date | Timestamp | undefined): Timestamp => {
   if (!date) return Timestamp.now();
   if (date instanceof Timestamp) return date;
   return Timestamp.fromDate(date);
-};
-
-const toDate = (timestamp: Timestamp | Date | undefined): Date => {
-  if (!timestamp) return new Date();
-  if (timestamp instanceof Date) return timestamp;
-  if (timestamp instanceof Timestamp) return timestamp.toDate();
-  return new Date();
 };
 
 // Helper function to query data in date range
@@ -278,8 +280,8 @@ const queryDataInDateRange = async <T>(
 ): Promise<T[]> => {
   const collectionRef = collection(db, collectionName)
   const queryConstraints = [
-    where(dateField, '>=', toTimestamp(startDate)),
-    where(dateField, '<=', toTimestamp(endDate)),
+    where(dateField, '>=', convertDateToTimestamp(startDate)),
+    where(dateField, '<=', convertDateToTimestamp(endDate)),
     ...Object.entries(additionalFilters).map(([field, value]) => where(field, '==', value))
   ]
   const q = query(collectionRef, ...queryConstraints)
@@ -495,7 +497,7 @@ export const addCommunication = async (
     communicationLog: arrayUnion({
       message,
       sentBy,
-      timestamp: toTimestamp(now)
+      timestamp: convertDateToTimestamp(now)
     })
   });
 };
@@ -692,16 +694,9 @@ export const createSleepoverRequest = async (data: Omit<SleepoverRequest, 'id' |
     const securityCode = Math.floor(100000 + Math.random() * 900000).toString();
     const now = Timestamp.now();
     
-    // Helper function to ensure date is converted to Firestore Timestamp
-    const toTimestamp = (date: Date): Timestamp => {
-      if (!date) return now;
-      if (date instanceof Timestamp) return date;
-      return Timestamp.fromDate(date instanceof Date ? date : new Date(date));
-    };
-
     // Calculate duration of stay
-    const startDate = data.startDate instanceof Date ? data.startDate : new Date(data.startDate);
-    const endDate = data.endDate instanceof Date ? data.endDate : new Date(data.endDate);
+    const startDate = convertTimestampToDate(data.startDate);
+    const endDate = convertTimestampToDate(data.endDate);
     const diffTime = Math.abs(endDate.getTime() - startDate.getTime());
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
     const durationOfStay = `${diffDays} ${diffDays === 1 ? 'day' : 'days'}`;
@@ -713,8 +708,8 @@ export const createSleepoverRequest = async (data: Omit<SleepoverRequest, 'id' |
       updatedAt: now,
       securityCode,
       isActive: false,
-      startDate: toTimestamp(data.startDate),
-      endDate: toTimestamp(data.endDate),
+      startDate: convertDateToTimestamp(data.startDate),
+      endDate: convertDateToTimestamp(data.endDate),
       durationOfStay
     };
 
@@ -763,7 +758,7 @@ export const getComplaints = async (userId: string, startDate: Date, endDate: Da
   )
   return complaints.map((complaint: Complaint) => ({
     ...complaint,
-    createdAt: toDate(complaint.createdAt as Timestamp | Date)
+    createdAt: convertTimestampToDate(complaint.createdAt as Timestamp | Date)
   }))
 };
 
@@ -803,7 +798,7 @@ export const getMaintenanceRequests = async (userId: string, startDate: Date, en
   )
   return requests.map((request: MaintenanceRequest) => ({
     ...request,
-    createdAt: toDate(request.createdAt as Timestamp | Date)
+    createdAt: convertTimestampToDate(request.createdAt as Timestamp | Date)
   }))
 };
 
@@ -914,7 +909,7 @@ export async function getAllComplaints() {
   return querySnapshot.docs.map(doc => ({
     id: doc.id,
     ...doc.data(),
-    createdAt: toDate(doc.data().createdAt as Timestamp | Date)
+    createdAt: convertTimestampToDate(doc.data().createdAt as Timestamp | Date)
   }));
 }
 
@@ -950,7 +945,7 @@ export async function getAllMaintenanceRequests() {
     return querySnapshot.docs.map(doc => ({
       id: doc.id,
       ...doc.data(),
-      createdAt: toDate(doc.data().createdAt as Timestamp | Date)
+      createdAt: convertTimestampToDate(doc.data().createdAt as Timestamp | Date)
     }))
   } catch (error) {
     console.error('Error getting maintenance requests:', error)
@@ -1085,7 +1080,7 @@ export async function getMyComplaints(userId:string){
   return querySnapshot.docs.map(doc => ({
     id: doc.id,
     ...doc.data(),
-    createdAt: toDate(doc.data().createdAt as Timestamp | Date)
+    createdAt: convertTimestampToDate(doc.data().createdAt as Timestamp | Date)
   }));
   
 }
@@ -1146,7 +1141,7 @@ export async function getMyGuestRequests(userId:string){
   return querySnapshot.docs.map(doc => ({
     id: doc.id,
     ...doc.data(),
-    createdAt: toDate(doc.data().createdAt as Timestamp | Date)
+    createdAt: convertTimestampToDate(doc.data().createdAt as Timestamp | Date)
   }));
 }
 
@@ -1162,7 +1157,7 @@ export async function getMyMaintenanceRequests(userId: string) {
     return querySnapshot.docs.map(doc => ({
       id: doc.id,
       ...doc.data(),
-      createdAt: toDate(doc.data().createdAt as Timestamp | Date)
+      createdAt: convertTimestampToDate(doc.data().createdAt as Timestamp | Date)
     }))
   } catch (error) {
     console.error('Error getting user maintenance requests:', error)
@@ -1201,7 +1196,7 @@ export async function getCheckoutCode() {
     return {
       id: doc.id,
       code: doc.data().code.toString(), // Ensure the code is a string
-      createdAt: toDate(doc.data().createdAt as Timestamp | Date)
+      createdAt: convertTimestampToDate(doc.data().createdAt as Timestamp | Date)
     };
   }
   return null;
@@ -1242,8 +1237,8 @@ export const getUserNotifications = async (userId: string) => {
     return {
       id: doc.id,
       ...data,
-      createdAt: toDate(data.createdAt as Timestamp | Date),
-      updatedAt: toDate(data.updatedAt as Timestamp | Date)
+      createdAt: convertTimestampToDate(data.createdAt as Timestamp | Date),
+      updatedAt: convertTimestampToDate(data.updatedAt as Timestamp | Date)
     };
   }) as Notification[];
 };
@@ -1519,11 +1514,16 @@ export const generateDetailedReport = async (tenantCode: string, date: Date): Pr
       where('createdAt', '<=', endOfDay)
     );
     const sleepoversSnapshot = await getDocs(sleepoversQuery);
-    const sleepovers = sleepoversSnapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data(),
-      date: doc.data().createdAt.toDate()
-    }));
+    const sleepovers = sleepoversSnapshot.docs.map(doc => {
+      const data = doc.data();
+      return {
+        id: doc.id,
+        studentName: data.studentName || '',
+        date: convertTimestampToDate(data.createdAt),
+        status: data.status as SleepoverStatus,
+        details: data.details || ''
+      };
+    });
 
     // Get maintenance requests with details
     const maintenanceRef = collection(db, 'tenants', tenantCode, 'maintenance');
@@ -1533,11 +1533,16 @@ export const generateDetailedReport = async (tenantCode: string, date: Date): Pr
       where('createdAt', '<=', endOfDay)
     );
     const maintenanceSnapshot = await getDocs(maintenanceQuery);
-    const maintenance = maintenanceSnapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data(),
-      date: doc.data().createdAt.toDate()
-    }));
+    const maintenance = maintenanceSnapshot.docs.map(doc => {
+      const data = doc.data();
+      return {
+        id: doc.id,
+        title: data.title || '',
+        description: data.description || '',
+        status: data.status as MaintenanceStatus,
+        createdAt: convertTimestampToDate(data.createdAt)
+      };
+    });
 
     // Get complaints with details
     const complaintsRef = collection(db, 'tenants', tenantCode, 'complaints');
@@ -1547,11 +1552,16 @@ export const generateDetailedReport = async (tenantCode: string, date: Date): Pr
       where('createdAt', '<=', endOfDay)
     );
     const complaintsSnapshot = await getDocs(complaintsQuery);
-    const complaints = complaintsSnapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data(),
-      date: doc.data().createdAt.toDate()
-    }));
+    const complaints = complaintsSnapshot.docs.map(doc => {
+      const data = doc.data();
+      return {
+        id: doc.id,
+        title: data.title || '',
+        description: data.description || '',
+        status: data.status as ComplaintStatus,
+        createdAt: convertTimestampToDate(data.createdAt)
+      };
+    });
 
     return {
       date,
@@ -1560,39 +1570,20 @@ export const generateDetailedReport = async (tenantCode: string, date: Date): Pr
         resolved: sleepovers.filter(s => s.status === SleepoverStatus.APPROVED).length,
         denied: sleepovers.filter(s => s.status === SleepoverStatus.DENIED).length,
         pending: sleepovers.filter(s => s.status === SleepoverStatus.PENDING).length,
-        items: sleepovers.map(s => ({
-          id: s.id,
-          studentName: s.studentName,
-          date: s.date,
-          status: s.status,
-          details: s.details
-        }))
+        items: sleepovers
       },
       maintenance: {
         total: maintenance.length,
-        resolved: maintenance.filter(m => m.status === MaintenanceStatus.COMPLETED).length,
-        denied: maintenance.filter(m => m.status === MaintenanceStatus.IN_PROGRESS).length,
         pending: maintenance.filter(m => m.status === MaintenanceStatus.PENDING).length,
-        items: maintenance.map(m => ({
-          id: m.id,
-          title: m.title,
-          description: m.description,
-          status: m.status,
-          createdAt: m.createdAt
-        }))
+        inProgress: maintenance.filter(m => m.status === MaintenanceStatus.IN_PROGRESS).length,
+        completed: maintenance.filter(m => m.status === MaintenanceStatus.COMPLETED).length,
+        items: maintenance
       },
       complaints: {
         total: complaints.length,
-        resolved: complaints.filter(c => c.status === ComplaintStatus.RESOLVED).length,
-        denied: complaints.filter(c => c.status === ComplaintStatus.DENIED).length,
         pending: complaints.filter(c => c.status === ComplaintStatus.PENDING).length,
-        items: complaints.map(c => ({
-          id: c.id,
-          title: c.title,
-          description: c.description,
-          status: c.status,
-          createdAt: c.createdAt
-        }))
+        resolved: complaints.filter(c => c.status === ComplaintStatus.RESOLVED).length,
+        items: complaints
       }
     };
   } catch (error) {
@@ -1653,11 +1644,11 @@ export const getActiveSleepoverGuests = async (userId: string) => {
   return querySnapshot.docs.map(doc => ({
     id: doc.id,
     ...doc.data(),
-    createdAt: toDate(doc.data().createdAt as Timestamp | Date),
-    updatedAt: toDate(doc.data().updatedAt as Timestamp | Date),
-    startDate: toDate(doc.data().startDate as Timestamp | Date),
-    endDate: toDate(doc.data().endDate as Timestamp | Date),
-    signOutTime: toDate(doc.data().signOutTime as Timestamp | Date)
+    createdAt: convertTimestampToDate(doc.data().createdAt as Timestamp | Date),
+    updatedAt: convertTimestampToDate(doc.data().updatedAt as Timestamp | Date),
+    startDate: convertTimestampToDate(doc.data().startDate as Timestamp | Date),
+    endDate: convertTimestampToDate(doc.data().endDate as Timestamp | Date),
+    signOutTime: doc.data().signOutTime ? convertTimestampToDate(doc.data().signOutTime as Timestamp | Date) : undefined
   })) as SleepoverRequest[];
 };
 
@@ -1750,8 +1741,8 @@ export async function getTodayMaintenanceRequests() {
       return {
         id: doc.id,
         ...data,
-        createdAt: toDate(data.createdAt as Timestamp | Date),
-        updatedAt: toDate(data.updatedAt as Timestamp | Date)
+        createdAt: convertTimestampToDate(data.createdAt as Timestamp | Date),
+        updatedAt: convertTimestampToDate(data.updatedAt as Timestamp | Date)
       };
     });
   } catch (error) {
@@ -1769,8 +1760,8 @@ export async function getAllManagementRequests() {
     return {
       id: doc.id,
       ...data,
-      createdAt: toDate(data.createdAt as Timestamp | Date),
-      updatedAt: toDate(data.updatedAt as Timestamp | Date)
+      createdAt: convertTimestampToDate(data.createdAt as Timestamp | Date),
+      updatedAt: convertTimestampToDate(data.updatedAt as Timestamp | Date)
     };
   });
 }
@@ -1814,8 +1805,8 @@ export async function getTodayManagementRequests() {
       return {
         id: doc.id,
         ...data,
-        createdAt: toDate(data.createdAt as Timestamp | Date),
-        updatedAt: toDate(data.updatedAt as Timestamp | Date)
+        createdAt: convertTimestampToDate(data.createdAt as Timestamp | Date),
+        updatedAt: convertTimestampToDate(data.updatedAt as Timestamp | Date)
       };
     });
   } catch (error) {
@@ -1848,15 +1839,15 @@ export function subscribeToSleepoverRequests(userId: string, callback: (requests
         guestPhoneNumber: data.guestPhoneNumber,
         roomNumber: data.roomNumber,
         additionalGuests: data.additionalGuests || [],
-        startDate: toDate(data.startDate as Timestamp | Date),
-        endDate: toDate(data.endDate as Timestamp | Date),
+        startDate: convertTimestampToDate(data.startDate as Timestamp | Date),
+        endDate: convertTimestampToDate(data.endDate as Timestamp | Date),
         status: data.status || 'pending',
-        createdAt: toDate(data.createdAt as Timestamp | Date),
-        updatedAt: toDate(data.updatedAt as Timestamp | Date),
+        createdAt: convertTimestampToDate(data.createdAt as Timestamp | Date),
+        updatedAt: convertTimestampToDate(data.updatedAt as Timestamp | Date),
         adminResponse: data.adminResponse,
         securityCode: data.securityCode,
         isActive: data.isActive,
-        signOutTime: data.signOutTime ? toDate(data.signOutTime as Timestamp | Date) : undefined,
+        signOutTime: data.signOutTime ? convertTimestampToDate(data.signOutTime as Timestamp | Date) : undefined,
         durationOfStay: data.durationOfStay
       } as SleepoverRequest;
     });
@@ -1887,23 +1878,18 @@ export async function checkoutSleepoverGuest(userId: string) {
       throw new Error('No approved sleepover found');
     }
 
-    // Helper function to safely convert Firestore timestamp to Date
-    const toDate = (timestamp: any): Date => {
-      if (!timestamp) return new Date();
-      if (timestamp.toDate) return timestamp.toDate();
-      if (timestamp instanceof Date) return timestamp;
-      return new Date(timestamp);
-    };
-
     // Find the most recent active sleepover
     const activeSleepover = querySnapshot.docs
-      .map(doc => ({
-        id: doc.id,
-        ...doc.data(),
-        startDate: toDate(doc.data().startDate as Timestamp | Date),
-        endDate: toDate(doc.data().endDate as Timestamp | Date),
-        signOutTime: doc.data().signOutTime ? toDate(doc.data().signOutTime as Timestamp | Date) : undefined
-      }))
+      .map(doc => {
+        const data = doc.data();
+        return {
+          id: doc.id,
+          guestName: data.guestName || '',
+          startDate: convertTimestampToDate(data.startDate),
+          endDate: convertTimestampToDate(data.endDate),
+          signOutTime: data.signOutTime ? convertTimestampToDate(data.signOutTime) : undefined
+        };
+      })
       .find(sleepover => {
         const now = new Date();
         const isWithinDateRange = now >= sleepover.startDate && 
@@ -1928,7 +1914,7 @@ export async function checkoutSleepoverGuest(userId: string) {
     await createNotification({
       userId,
       title: 'Sleepover Checkout',
-      message: `Guest ${activeSleepover.guestName || 'Unknown'} has been checked out successfully`,
+      message: `Guest ${activeSleepover.guestName} has been checked out successfully`,
       type: 'sleepover',
       read: false
     });
@@ -1973,7 +1959,7 @@ export async function getAllApplications() {
   return querySnapshot.docs.map(doc => ({
     id: doc.id,
     ...doc.data(),
-    createdAt: toDate(doc.data().createdAt as Timestamp | Date)
+    createdAt: convertTimestampToDate(doc.data().createdAt as Timestamp | Date)
   }));
 }
 
@@ -2059,7 +2045,7 @@ export async function getUserActiveGuests(userId: string) {
       return {
         id: doc.id,
         ...data,
-        createdAt: toDate(data.createdAt as Timestamp | Date),
+        createdAt: convertTimestampToDate(data.createdAt as Timestamp | Date),
         checkoutTime: data.checkoutTime?.toDate(),
         fromDate: data.fromDate || new Date().toISOString().split('T')[0]
       };
@@ -2095,7 +2081,7 @@ export async function getUserMaintenanceRequests(userId: string) {
     return querySnapshot.docs.map(doc => ({
       id: doc.id,
       ...doc.data(),
-      createdAt: toDate(doc.data().createdAt as Timestamp | Date)
+      createdAt: convertTimestampToDate(doc.data().createdAt as Timestamp | Date)
     }))
   } catch (error) {
     console.error('Error getting user maintenance requests:', error)
@@ -2131,7 +2117,7 @@ async function getSleepoversForDateRange(startDate: Date, endDate: Date): Promis
   return snapshot.docs.map(doc => ({
     id: doc.id,
     ...doc.data(),
-    createdAt: toDate(doc.data().createdAt as Timestamp | Date)
+    createdAt: convertTimestampToDate(doc.data().createdAt as Timestamp | Date)
   })) as SleepoverRequest[]
 }
 
@@ -2146,7 +2132,7 @@ async function getMaintenanceForDateRange(startDate: Date, endDate: Date): Promi
   return snapshot.docs.map(doc => ({
     id: doc.id,
     ...doc.data(),
-    createdAt: toDate(doc.data().createdAt as Timestamp | Date)
+    createdAt: convertTimestampToDate(doc.data().createdAt as Timestamp | Date)
   })) as MaintenanceRequest[]
 }
 
@@ -2161,6 +2147,6 @@ async function getComplaintsForDateRange(startDate: Date, endDate: Date): Promis
   return snapshot.docs.map(doc => ({
     id: doc.id,
     ...doc.data(),
-    createdAt: toDate(doc.data().createdAt as Timestamp | Date)
+    createdAt: convertTimestampToDate(doc.data().createdAt as Timestamp | Date)
   })) as Complaint[]
 }
