@@ -152,18 +152,6 @@ interface FirestoreUser {
   role: 'student' | 'admin';
 }
 
-interface FirestorePayment {
-  id: string;
-  userId: string;
-  amount: number;
-  date: Date;
-  type: string;
-  status: 'paid' | 'pending' | 'overdue';
-  description: string;
-  createdAt?: Date;
-  updatedAt?: Date;
-}
-
 export interface DailyReport {
   date: Date;
   sleepovers: {
@@ -1831,4 +1819,55 @@ export async function updateAnnouncement(announcementId: string, data: Partial<A
     console.error('Error updating announcement:', error);
     throw new Error('Failed to update announcement');
   }
+}
+
+export async function getAllApplications() {
+  const applicationsRef = collection(db, 'applications');
+  const q = query(applicationsRef, orderBy('createdAt', 'desc'));
+  const querySnapshot = await getDocs(q);
+  return querySnapshot.docs.map(doc => ({
+    id: doc.id,
+    ...doc.data(),
+    createdAt: doc.data().createdAt?.toDate() || new Date(),
+  }));
+}
+
+export async function approveApplication(applicationId: string) {
+  const applicationRef = doc(db, 'applications', applicationId);
+  await updateDoc(applicationRef, {
+    status: 'approved',
+    updatedAt: new Date(),
+  });
+}
+
+export async function rejectApplication(applicationId: string) {
+  const applicationRef = doc(db, 'applications', applicationId);
+  await updateDoc(applicationRef, {
+    status: 'rejected',
+    updatedAt: new Date(),
+  });
+}
+
+export async function signOutGuest(guestId: string) {
+  const guestRef = doc(db, 'guests', guestId);
+  await updateDoc(guestRef, {
+    status: 'checked-out',
+    checkOutTime: new Date(),
+  });
+}
+
+export async function approveSleepoverRequest(requestId: string) {
+  const requestRef = doc(db, 'sleepover_requests', requestId);
+  await updateDoc(requestRef, {
+    status: 'approved',
+    updatedAt: new Date(),
+  });
+}
+
+export async function rejectSleepoverRequest(requestId: string) {
+  const requestRef = doc(db, 'sleepover_requests', requestId);
+  await updateDoc(requestRef, {
+    status: 'rejected',
+    updatedAt: new Date(),
+  });
 }
