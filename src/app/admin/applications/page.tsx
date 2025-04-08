@@ -6,12 +6,24 @@ import { useAuth } from '@/lib/auth';
 import { format } from 'date-fns';
 import { toast } from 'react-hot-toast';
 
+interface Application {
+  id: string;
+  tenantCode: string;
+  name: string;
+  email: string;
+  phone: string;
+  placeOfStudy: string;
+  status: 'pending' | 'approved' | 'rejected';
+  createdAt: Date;
+  adminResponse?: string;
+}
+
 export default function AdminApplicationsPage() {
   const { user } = useAuth();
-  const [applications, setApplications] = useState([]);
+  const [applications, setApplications] = useState<Application[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [selectedApplication, setSelectedApplication] = useState(null);
+  const [selectedApplication, setSelectedApplication] = useState<Application | null>(null);
   const [adminResponse, setAdminResponse] = useState('');
   const [showHistory, setShowHistory] = useState(false);
 
@@ -24,7 +36,12 @@ export default function AdminApplicationsPage() {
   const fetchApplications = async () => {
     try {
       const allApplications = await getAllApplications();
-      setApplications(allApplications);
+      // Convert Firestore timestamps to Date objects
+      const processedApplications = allApplications.map(app => ({
+        ...app,
+        createdAt: app.createdAt instanceof Date ? app.createdAt : new Date(app.createdAt)
+      })) as Application[];
+      setApplications(processedApplications);
     } catch (err) {
       setError('Failed to fetch applications');
       console.error(err);
