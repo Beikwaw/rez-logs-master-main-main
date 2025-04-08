@@ -1901,19 +1901,21 @@ export async function getAllApplications() {
   }));
 }
 
-export async function approveApplication(applicationId: string) {
+export async function approveApplication(applicationId: string, adminResponse: string) {
   const applicationRef = doc(db, 'applications', applicationId);
   await updateDoc(applicationRef, {
     status: 'approved',
     updatedAt: new Date(),
+    adminResponse
   });
 }
 
-export async function rejectApplication(applicationId: string) {
+export async function rejectApplication(applicationId: string, adminResponse: string) {
   const applicationRef = doc(db, 'applications', applicationId);
   await updateDoc(applicationRef, {
     status: 'rejected',
     updatedAt: new Date(),
+    adminResponse
   });
 }
 
