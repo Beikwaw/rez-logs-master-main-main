@@ -256,6 +256,21 @@ export interface Announcement {
   createdByName?: string
 }
 
+export interface GuestRequest {
+  id: string;
+  firstName: string;
+  lastName: string;
+  phoneNumber: string;
+  roomNumber: string;
+  purpose: string;
+  fromDate: string;
+  status: 'active' | 'checked_out';
+  tenantCode: string;
+  userId: string;
+  createdAt: Date;
+  checkoutTime?: Date;
+}
+
 // Helper function to convert Timestamp to Date
 const convertTimestampToDate = (timestamp: Timestamp | Date | undefined): Date => {
   if (!timestamp) return new Date();
@@ -1047,11 +1062,18 @@ export async function getAllGuestRequests() {
       const data = doc.data();
       return {
         id: doc.id,
-        ...data,
-        createdAt: data.createdAt?.toDate() || new Date(),
-        checkoutTime: data.checkoutTime?.toDate(),
-        fromDate: data.fromDate || new Date().toISOString().split('T')[0]
-      };
+        firstName: data.firstName || '',
+        lastName: data.lastName || '',
+        phoneNumber: data.phoneNumber || '',
+        roomNumber: data.roomNumber || '',
+        purpose: data.purpose || '',
+        fromDate: data.fromDate || new Date().toISOString().split('T')[0],
+        status: data.status || 'active',
+        tenantCode: data.tenantCode || '',
+        userId: data.userId || '',
+        createdAt: convertTimestampToDate(data.createdAt as Timestamp | Date),
+        checkoutTime: data.checkoutTime ? convertTimestampToDate(data.checkoutTime as Timestamp | Date) : undefined
+      } as GuestRequest;
     });
   } catch (error) {
     console.error('Error fetching all guest requests:', error);
