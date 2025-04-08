@@ -973,11 +973,11 @@ export async function assignStaffToComplaint(complaintId: string, staffId: strin
   });
 }
 
-export async function getAllMaintenanceRequests(): Promise<ManagementRequest[]> {
+export async function getAllMaintenanceRequests(): Promise<MaintenanceRequest[]> {
   try {
     const querySnapshot = await getDocs(
       query(
-        collection(db, 'management_requests'),
+        collection(db, 'maintenance_requests'),
         orderBy('createdAt', 'desc')
       )
     );
@@ -986,9 +986,9 @@ export async function getAllMaintenanceRequests(): Promise<ManagementRequest[]> 
       id: doc.id,
       ...doc.data(),
       createdAt: convertTimestampToDate(doc.data().createdAt)
-    })) as ManagementRequest[];
+    })) as MaintenanceRequest[];
   } catch (error) {
-    console.error('Error getting management requests:', error);
+    console.error('Error getting maintenance requests:', error);
     throw error;
   }
 };
@@ -2067,3 +2067,30 @@ export const getAllManagementRequests = async (): Promise<ManagementRequest[]> =
     throw error;
   }
 };
+
+export async function getTodayMaintenanceRequests(): Promise<MaintenanceRequest[]> {
+  try {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+
+    const querySnapshot = await getDocs(
+      query(
+        collection(db, 'maintenance_requests'),
+        where('createdAt', '>=', today),
+        where('createdAt', '<', tomorrow),
+        orderBy('createdAt', 'desc')
+      )
+    );
+
+    return querySnapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data(),
+      createdAt: convertTimestampToDate(doc.data().createdAt)
+    })) as MaintenanceRequest[];
+  } catch (error) {
+    console.error('Error getting today\'s maintenance requests:', error);
+    throw error;
+  }
+}
