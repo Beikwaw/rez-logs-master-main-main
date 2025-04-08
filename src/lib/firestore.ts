@@ -982,16 +982,51 @@ export async function getAllMaintenanceRequests(): Promise<MaintenanceRequest[]>
       )
     );
 
-    return querySnapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data(),
-      createdAt: convertTimestampToDate(doc.data().createdAt)
-    })) as MaintenanceRequest[];
+    return querySnapshot.docs.map(doc => {
+      const data = doc.data();
+      return {
+        id: doc.id,
+        ...data,
+        createdAt: convertTimestampToDate(data.createdAt),
+        updatedAt: data.updatedAt ? convertTimestampToDate(data.updatedAt) : undefined
+      } as MaintenanceRequest;
+    });
   } catch (error) {
     console.error('Error getting maintenance requests:', error);
     throw error;
   }
-};
+}
+
+export async function getTodayMaintenanceRequests(): Promise<MaintenanceRequest[]> {
+  try {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+
+    const querySnapshot = await getDocs(
+      query(
+        collection(db, 'maintenance_requests'),
+        where('createdAt', '>=', today),
+        where('createdAt', '<', tomorrow),
+        orderBy('createdAt', 'desc')
+      )
+    );
+
+    return querySnapshot.docs.map(doc => {
+      const data = doc.data();
+      return {
+        id: doc.id,
+        ...data,
+        createdAt: convertTimestampToDate(data.createdAt),
+        updatedAt: data.updatedAt ? convertTimestampToDate(data.updatedAt) : undefined
+      } as MaintenanceRequest;
+    });
+  } catch (error) {
+    console.error('Error getting today\'s maintenance requests:', error);
+    throw error;
+  }
+}
 
 export const getTodayManagementRequests = async (): Promise<ManagementRequest[]> => {
   try {
@@ -2067,30 +2102,3 @@ export const getAllManagementRequests = async (): Promise<ManagementRequest[]> =
     throw error;
   }
 };
-
-export async function getTodayMaintenanceRequests(): Promise<MaintenanceRequest[]> {
-  try {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const tomorrow = new Date(today);
-    tomorrow.setDate(tomorrow.getDate() + 1);
-
-    const querySnapshot = await getDocs(
-      query(
-        collection(db, 'maintenance_requests'),
-        where('createdAt', '>=', today),
-        where('createdAt', '<', tomorrow),
-        orderBy('createdAt', 'desc')
-      )
-    );
-
-    return querySnapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data(),
-      createdAt: convertTimestampToDate(doc.data().createdAt)
-    })) as MaintenanceRequest[];
-  } catch (error) {
-    console.error('Error getting today\'s maintenance requests:', error);
-    throw error;
-  }
-}
