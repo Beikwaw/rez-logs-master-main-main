@@ -1,111 +1,124 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { useRouter } from 'next/navigation';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { toast } from 'sonner';
+import { getAnnouncements, createAnnouncement, deleteAnnouncement, updateAnnouncement, AdminData } from '@/lib/firestore';
 import { format } from 'date-fns';
-import { toast } from 'react-hot-toast';
-import { createAnnouncement, getAnnouncements, updateAnnouncement, deleteAnnouncement } from '@/lib/firestore';
-import type { Announcement } from '@/types/announcement';
 import { Megaphone, Trash2, Edit2, Check, X } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { useRouter } from 'next/navigation';
 
 export default function AnnouncementsPage() {
+  const [title, setTitle] = useState('');
+  const [content, setContent] = useState('');
+  const [priority, setPriority] = useState<'low' | 'medium' | 'high'>('medium');
+  const [expiresAt, setExpiresAt] = useState('');
+  const [announcements, setAnnouncements] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
   const { user, userData } = useAuth();
   const router = useRouter();
-  const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [isCreating, setIsCreating] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [formData, setFormData] = useState({
-    title: '',
-    content: '',
-    priority: 'medium' as const,
-    expiresAt: ''
-  });
 
   useEffect(() => {
-    if (!userData?.role || userData.role !== 'admin') {
+    if (!user || !userData) {
       toast.error('Unauthorized access');
       router.push('/portals/admin');
       return;
     }
 
-    fetchAnnouncements();
-  }, [userData, router]);
+    const fetchAnnouncements = async () => {
+      try {
+        const data = await getAnnouncements();
+        setAnnouncements(data);
+      } catch (error) {
+        console.error('Error fetching announcements:', error);
+        toast.error('Failed to fetch announcements');
+      }
+    };
 
-  const fetchAnnouncements = async () => {
-    try {
-      const data = await getAnnouncements();
-      // Convert Firestore timestamps to JavaScript Date objects
-      const processedAnnouncements = data.map(announcement => ({
-        ...announcement,
-        createdAt: announcement.createdAt?.toDate() || new Date(),
-        expiresAt: announcement.expiresAt?.toDate()
-      }));
-      setAnnouncements(processedAnnouncements);
-    } catch (error) {
-      console.error('Error fetching announcements:', error);
-      toast.error('Failed to fetch announcements');
-    }
-  };
+    fetchAnnouncements();
+  }, [user, userData, router]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (!title || !content) {
+      toast.error('Please fill in all required fields');
+      return;
+    }
+
+    setIsLoading(true);
+    
     try {
-      const announcementData = {
-        ...formData,
-        expiresAt: formData.expiresAt ? new Date(formData.expiresAt) : undefined
-      };
-
-      if (editingId) {
-        await updateAnnouncement(editingId, announcementData);
-        toast.success('Announcement updated successfully');
-      } else {
-        await createAnnouncement(announcementData);
-        toast.success('Announcement created successfully');
-      }
-
-      setIsCreating(false);
-      setEditingId(null);
-      setFormData({
-        title: '',
-        content: '',
-        priority: 'medium',
-        expiresAt: ''
+      await createAnnouncement({
+        title,
+        content,
+        priority,
+        expiresAt: expiresAt ? new Date(expiresAt) : undefined,
+        createdAt: new Date(),
+        createdBy: user?.uid || '',
+        createdByName: userData?.name || 'Admin'
       });
-      fetchAnnouncements();
+
+      toast.success('Announcement created successfully');
+      setTitle('');
+      setContent('');
+      setPriority('medium');
+      setExpiresAt('');
+      
+      // Refresh announcements
+      const data = await getAnnouncements();
+      setAnnouncements(data);
     } catch (error) {
-      console.error('Error saving announcement:', error);
-      toast.error('Failed to save announcement');
+      console.error('Error creating announcement:', error);
+      toast.error('Failed to create announcement');
+    } finally {
+      setIsLoading(false);
     }
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this announcement?')) return;
-    
     try {
       await deleteAnnouncement(id);
       toast.success('Announcement deleted successfully');
-      fetchAnnouncements();
+      
+      // Refresh announcements
+      const data = await getAnnouncements();
+      setAnnouncements(data);
     } catch (error) {
       console.error('Error deleting announcement:', error);
       toast.error('Failed to delete announcement');
     }
   };
 
-  const handleEdit = (announcement: Announcement) => {
+  const handleUpdate = async (id: string, updates: Partial<any>) => {
+    try {
+      await updateAnnouncement(id, updates);
+      toast.success('Announcement updated successfully');
+      
+      // Refresh announcements
+      const data = await getAnnouncements();
+      setAnnouncements(data);
+    } catch (error) {
+      console.error('Error updating announcement:', error);
+      toast.error('Failed to update announcement');
+    }
+  };
+
+  const handleEdit = (announcement: any) => {
     setEditingId(announcement.id);
-    setFormData({
-      title: announcement.title,
-      content: announcement.content,
-      priority: announcement.priority,
-      expiresAt: announcement.expiresAt ? format(announcement.expiresAt, "yyyy-MM-dd") : ''
-    });
+    setTitle(announcement.title);
+    setContent(announcement.content);
+    setPriority(announcement.priority);
+    setExpiresAt(announcement.expiresAt ? format(new Date(announcement.expiresAt), "yyyy-MM-dd'T'HH:mm") : '');
     setIsCreating(true);
   };
 
@@ -122,22 +135,118 @@ export default function AnnouncementsPage() {
     }
   };
 
-  if (!userData?.role || userData.role !== 'admin') {
+  if (!user || !userData) {
     return (
       <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary-500"></div>
       </div>
     );
   }
 
   return (
-    <div className="container mx-auto py-6">
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold">Announcements</h1>
-        <Button onClick={() => setIsCreating(true)}>
-          <Megaphone className="mr-2 h-4 w-4" />
-          New Announcement
-        </Button>
+    <div className="container mx-auto py-8">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+        <Card>
+          <CardHeader>
+            <CardTitle>Create Announcement</CardTitle>
+            <CardDescription>Post a new announcement to all users</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="title">Title</Label>
+                <Input
+                  id="title"
+                  value={title}
+                  onChange={(e) => setTitle(e.target.value)}
+                  placeholder="Enter announcement title"
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="content">Content</Label>
+                <Textarea
+                  id="content"
+                  value={content}
+                  onChange={(e) => setContent(e.target.value)}
+                  placeholder="Enter announcement content"
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="priority">Priority</Label>
+                <Select
+                  value={priority}
+                  onValueChange={(value: 'low' | 'medium' | 'high') => setPriority(value)}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select priority" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="low">Low</SelectItem>
+                    <SelectItem value="medium">Medium</SelectItem>
+                    <SelectItem value="high">High</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="expiresAt">Expiration Date (Optional)</Label>
+                <Input
+                  id="expiresAt"
+                  type="datetime-local"
+                  value={expiresAt}
+                  onChange={(e) => setExpiresAt(e.target.value)}
+                />
+              </div>
+              <Button type="submit" className="w-full" disabled={isLoading}>
+                {isLoading ? 'Creating...' : 'Create Announcement'}
+              </Button>
+            </form>
+          </CardContent>
+        </Card>
+
+        <div className="space-y-4">
+          <h2 className="text-2xl font-bold">Recent Announcements</h2>
+          {announcements.map((announcement) => (
+            <Card key={announcement.id}>
+              <CardHeader>
+                <div className="flex justify-between items-start">
+                  <div>
+                    <CardTitle>{announcement.title}</CardTitle>
+                    <CardDescription>
+                      Posted by {announcement.createdByName} on{' '}
+                      {format(new Date(announcement.createdAt), 'PPP')}
+                    </CardDescription>
+                  </div>
+                  <div className="flex space-x-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleUpdate(announcement.id, { priority: 'high' })}
+                    >
+                      High
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleDelete(announcement.id)}
+                    >
+                      Delete
+                    </Button>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <p>{announcement.content}</p>
+                {announcement.expiresAt && (
+                  <p className="text-sm text-muted-foreground mt-2">
+                    Expires: {format(new Date(announcement.expiresAt), 'PPP')}
+                  </p>
+                )}
+              </CardContent>
+            </Card>
+          ))}
+        </div>
       </div>
 
       <Dialog open={isCreating} onOpenChange={setIsCreating}>
@@ -149,24 +258,24 @@ export default function AnnouncementsPage() {
             <div>
               <label className="block text-sm font-medium mb-1">Title</label>
               <Input
-                value={formData.title}
-                onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
                 required
               />
             </div>
             <div>
               <label className="block text-sm font-medium mb-1">Content</label>
               <Textarea
-                value={formData.content}
-                onChange={(e) => setFormData({ ...formData, content: e.target.value })}
+                value={content}
+                onChange={(e) => setContent(e.target.value)}
                 required
               />
             </div>
             <div>
               <label className="block text-sm font-medium mb-1">Priority</label>
               <Select
-                value={formData.priority}
-                onValueChange={(value) => setFormData({ ...formData, priority: value as 'low' | 'medium' | 'high' })}
+                value={priority}
+                onValueChange={(value) => setPriority(value as 'low' | 'medium' | 'high' | 'high')}
               >
                 <SelectTrigger>
                   <SelectValue />
@@ -181,9 +290,9 @@ export default function AnnouncementsPage() {
             <div>
               <label className="block text-sm font-medium mb-1">Expires At (Optional)</label>
               <Input
-                type="date"
-                value={formData.expiresAt}
-                onChange={(e) => setFormData({ ...formData, expiresAt: e.target.value })}
+                type="datetime-local"
+                value={expiresAt}
+                onChange={(e) => setExpiresAt(e.target.value)}
               />
             </div>
             <div className="flex justify-end space-x-2">
@@ -193,12 +302,10 @@ export default function AnnouncementsPage() {
                 onClick={() => {
                   setIsCreating(false);
                   setEditingId(null);
-                  setFormData({
-                    title: '',
-                    content: '',
-                    priority: 'medium',
-                    expiresAt: ''
-                  });
+                  setTitle('');
+                  setContent('');
+                  setPriority('medium');
+                  setExpiresAt('');
                 }}
               >
                 Cancel
@@ -210,51 +317,6 @@ export default function AnnouncementsPage() {
           </form>
         </DialogContent>
       </Dialog>
-
-      <div className="grid gap-4">
-        {announcements.map((announcement) => (
-          <Card key={announcement.id}>
-            <CardHeader>
-              <div className="flex justify-between items-start">
-                <div>
-                  <CardTitle className="flex items-center gap-2">
-                    <span className={getPriorityColor(announcement.priority)}>●</span>
-                    {announcement.title}
-                  </CardTitle>
-                  <p className="text-sm text-muted-foreground">
-                    Created by {announcement.createdByName} on{' '}
-                    {format(announcement.createdAt, 'PPP')}
-                    {announcement.expiresAt && (
-                      <span className="ml-2">
-                        • Expires: {format(announcement.expiresAt, 'PPP')}
-                      </span>
-                    )}
-                  </p>
-                </div>
-                <div className="flex gap-2">
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => handleEdit(announcement)}
-                  >
-                    <Edit2 className="h-4 w-4" />
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => handleDelete(announcement.id)}
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                </div>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <p className="whitespace-pre-wrap">{announcement.content}</p>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
     </div>
   );
 } 

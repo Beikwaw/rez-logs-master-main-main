@@ -29,11 +29,11 @@ const hasAccessToPage = (adminType: AdminData['type'], page: string): boolean =>
   if (adminType === 'superadmin') return true;
 
   const accessMap: Record<AdminData['type'], string[]> = {
-    'superadmin': ['', 'users', 'admins', 'announcements', 'settings'],
-    'admin-maintenance': ['', 'maintenance', 'complaints', 'settings'],
-    'admin-security': ['', 'guests', 'sleepovers', 'settings'],
-    'admin-complaints': ['', 'complaints', 'settings'],
-    'admin-guest-management': ['', 'guests', 'sleepovers', 'settings']
+    'superadmin': ['', 'users', 'admins', 'announcements', 'settings', 'newbies', 'guests', 'sleepovers', 'maintenance', 'complaints'],
+    'admin-maintenance': ['', 'maintenance', 'complaints'],
+    'admin-security': ['', 'guests', 'sleepovers'],
+    'admin-complaints': ['', 'complaints'],
+    'admin-guest-management': ['', 'guests', 'sleepovers']
   };
 
   const currentPage = page.toLowerCase();
@@ -104,27 +104,34 @@ export default function AdminLayout({
 
   const isActiveLink = (href: string) => pathname === href;
 
-  // Base navigation items (dashboard is always available)
+  // Base navigation items (filtered based on admin type)
   const baseItems = [
     { href: '/admin', label: 'Dashboard', icon: Home },
-    { href: '/admin/newbies', label: 'New Applications', icon: UserPlus },
-    { href: '/admin/guests', label: 'Guest Sign-In', icon: UserPlus },
-    { href: '/admin/sleepovers', label: 'Sleepover Requests', icon: Calendar },
-    { href: '/admin/maintenance', label: 'Maintenance', icon: Wrench },
-    { href: '/admin/complaints', label: 'Complaints', icon: AlertCircle },
-    { href: '/admin/announcements', label: 'Announcements', icon: Megaphone },
+    ...(adminData.type === 'superadmin' || ['admin-security', 'admin-guest-management'].includes(adminData.type) 
+      ? [
+          { href: '/admin/newbies', label: 'New Applications', icon: UserPlus },
+          { href: '/admin/guests', label: 'Guest Sign-In', icon: UserPlus },
+          { href: '/admin/sleepovers', label: 'Sleepover Requests', icon: Calendar },
+        ] 
+      : []),
+    ...(adminData.type === 'superadmin' || ['admin-maintenance'].includes(adminData.type)
+      ? [{ href: '/admin/maintenance', label: 'Maintenance', icon: Wrench }]
+      : []),
+    ...(adminData.type === 'superadmin' || ['admin-complaints', 'admin-maintenance'].includes(adminData.type)
+      ? [{ href: '/admin/complaints', label: 'Complaints', icon: AlertCircle }]
+      : []),
+    ...(adminData.type === 'superadmin'
+      ? [{ href: '/admin/announcements', label: 'Announcements', icon: Megaphone }]
+      : []),
   ];
 
-  // Settings is always at the bottom
-  const settingsItem = [
-    { href: '/admin/settings', label: 'Settings', icon: Settings },
-  ];
+  // Settings is only available to superadmin
+  const settingsItem = adminData.type === 'superadmin'
+    ? [{ href: '/admin/settings', label: 'Settings', icon: Settings }]
+    : [];
 
   // Combine navigation items
-  const allNavigationItems = [
-    ...baseItems,
-    ...(adminData.type === 'superadmin' ? settingsItem : [])
-  ];
+  const allNavigationItems = [...baseItems, ...settingsItem];
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -167,24 +174,7 @@ export default function AdminLayout({
           <>
             <aside className="fixed top-0 left-0 w-[70%] h-full z-50 border-r bg-background">
               <nav className="space-y-1 p-4">
-                {baseItems.map((item) => (
-                  <Link key={item.href} href={item.href}>
-                    <Button
-                      variant={isActiveLink(item.href) ? "default" : "ghost"}
-                      className={`w-full justify-start ${
-                        isActiveLink(item.href)
-                          ? 'bg-black text-white hover:bg-gray-800 hover:text-gray-300'
-                          : ''
-                      }`}
-                      onClick={() => setShowSidebar(false)}
-                    >
-                      <item.icon className="mr-2 h-4 w-4" />
-                      {item.label}
-                    </Button>
-                  </Link>
-                ))}
-                <div className="my-6 border-t" />
-                {settingsItem.map((item) => (
+                {allNavigationItems.map((item) => (
                   <Link key={item.href} href={item.href}>
                     <Button
                       variant={isActiveLink(item.href) ? "default" : "ghost"}
@@ -211,23 +201,7 @@ export default function AdminLayout({
           !isMobileScreen && (
             <aside className="w-64 border-r bg-background">
               <nav className="space-y-1 p-4">
-                {baseItems.map((item) => (
-                  <Link key={item.href} href={item.href}>
-                    <Button
-                      variant={isActiveLink(item.href) ? "default" : "ghost"}
-                      className={`w-full justify-start ${
-                        isActiveLink(item.href)
-                          ? 'bg-black text-white hover:bg-gray-800 hover:text-gray-300'
-                          : ''
-                      }`}
-                    >
-                      <item.icon className="mr-2 h-4 w-4" />
-                      {item.label}
-                    </Button>
-                  </Link>
-                ))}
-                <div className="my-6 border-t" />
-                {settingsItem.map((item) => (
+                {allNavigationItems.map((item) => (
                   <Link key={item.href} href={item.href}>
                     <Button
                       variant={isActiveLink(item.href) ? "default" : "ghost"}

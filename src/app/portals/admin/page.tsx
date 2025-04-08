@@ -39,15 +39,20 @@ export default function AdminPortalPage() {
         throw new Error('Authentication failed');
       }
 
+      // Get admin data to check type
+      const adminData = await getAdminByUserId(userData.uid);
+      if (!adminData) {
+        throw new Error('Not authorized as admin');
+      }
+
       // Format the display type
-      let displayType = 'Admin';
-      if (userData.role === 'superadmin') {
+      let displayType = adminData.type
+        .split('-')
+        .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+        .join(' ');
+
+      if (adminData.type === 'superadmin') {
         displayType = 'Super Admin';
-      } else if (userData.role.startsWith('admin-')) {
-        displayType = userData.role
-          .split('-')
-          .map(word => word.charAt(0).toUpperCase() + word.slice(1))
-          .join(' ');
       }
       
       toast.success(`Welcome, ${displayType}`);
