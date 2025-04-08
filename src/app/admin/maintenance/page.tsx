@@ -1,18 +1,19 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { getAllMaintenanceRequests, getTodayMaintenanceRequests, updateMaintenanceStatus } from '@/lib/firestore';
+import { getAllMaintenanceRequests, getTodayMaintenanceRequests, updateMaintenanceStatus, MaintenanceStatus } from '@/lib/firestore';
 import { useAuth } from '@/lib/auth';
 import { format } from 'date-fns';
 import { toast } from 'react-hot-toast';
+import { MaintenanceRequest } from '@/lib/firestore';
 
 export default function AdminMaintenancePage() {
   const { user } = useAuth();
-  const [requests, setRequests] = useState([]);
-  const [todayRequests, setTodayRequests] = useState([]);
+  const [requests, setRequests] = useState<MaintenanceRequest[]>([]);
+  const [todayRequests, setTodayRequests] = useState<MaintenanceRequest[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [selectedRequest, setSelectedRequest] = useState(null);
+  const [selectedRequest, setSelectedRequest] = useState<MaintenanceRequest | null>(null);
   const [adminResponse, setAdminResponse] = useState('');
   const [showHistory, setShowHistory] = useState(false);
 
@@ -38,7 +39,7 @@ export default function AdminMaintenancePage() {
     }
   };
 
-  const handleStatusUpdate = async (status) => {
+  const handleStatusUpdate = async (status: MaintenanceStatus) => {
     if (!selectedRequest || !adminResponse) return;
 
     try {
@@ -157,9 +158,9 @@ export default function AdminMaintenancePage() {
                 <div className="text-right">
                   <span
                     className={`inline-block px-3 py-1 rounded-full text-sm font-medium ${
-                      request.status === 'completed'
+                      request.status === MaintenanceStatus.COMPLETED
                         ? 'bg-green-100 text-green-800'
-                        : request.status === 'in_progress'
+                        : request.status === MaintenanceStatus.IN_PROGRESS
                         ? 'bg-blue-100 text-blue-800'
                         : 'bg-yellow-100 text-yellow-800'
                     }`}
@@ -179,7 +180,7 @@ export default function AdminMaintenancePage() {
                 </div>
               )}
 
-              {request.status === 'pending' && (
+              {request.status === MaintenanceStatus.PENDING && (
                 <div className="mt-4 flex justify-end gap-2">
                   <button
                     onClick={() => setSelectedRequest(request)}
@@ -190,7 +191,7 @@ export default function AdminMaintenancePage() {
                 </div>
               )}
 
-              {request.status === 'in_progress' && (
+              {request.status === MaintenanceStatus.IN_PROGRESS && (
                 <div className="mt-4 flex justify-end gap-2">
                   <button
                     onClick={() => setSelectedRequest(request)}
@@ -210,7 +211,7 @@ export default function AdminMaintenancePage() {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
           <div className="bg-white p-6 rounded-lg w-full max-w-md">
             <h3 className="text-xl font-semibold mb-4">
-              {selectedRequest.status === 'pending' ? 'Start Work' : 'Mark as Completed'}
+              {selectedRequest.status === MaintenanceStatus.PENDING ? 'Start Work' : 'Mark as Completed'}
             </h3>
             <textarea
               value={adminResponse}
@@ -229,14 +230,14 @@ export default function AdminMaintenancePage() {
                 Cancel
               </button>
               <button
-                onClick={() => handleStatusUpdate(selectedRequest.status === 'pending' ? 'in_progress' : 'completed')}
+                onClick={() => handleStatusUpdate(selectedRequest.status === MaintenanceStatus.PENDING ? MaintenanceStatus.IN_PROGRESS : MaintenanceStatus.COMPLETED)}
                 className={`px-4 py-2 text-white rounded ${
-                  selectedRequest.status === 'pending'
+                  selectedRequest.status === MaintenanceStatus.PENDING
                     ? 'bg-blue-500 hover:bg-blue-600'
                     : 'bg-green-500 hover:bg-green-600'
                 }`}
               >
-                {selectedRequest.status === 'pending' ? 'Start Work' : 'Mark as Completed'}
+                {selectedRequest.status === MaintenanceStatus.PENDING ? 'Start Work' : 'Mark as Completed'}
               </button>
             </div>
           </div>
