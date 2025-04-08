@@ -10,7 +10,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
-import { getAnnouncements, createAnnouncement, deleteAnnouncement, updateAnnouncement, AdminData } from '@/lib/firestore';
+import { getAnnouncements, createAnnouncement, deleteAnnouncement, updateAnnouncement, AdminData, Announcement } from '@/lib/firestore';
 import { format } from 'date-fns';
 import { Megaphone, Trash2, Edit2, Check, X } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -20,7 +20,7 @@ export default function AnnouncementsPage() {
   const [content, setContent] = useState('');
   const [priority, setPriority] = useState<'low' | 'medium' | 'high'>('medium');
   const [expiresAt, setExpiresAt] = useState('');
-  const [announcements, setAnnouncements] = useState<any[]>([]);
+  const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const { user, userData } = useAuth();
   const router = useRouter();
@@ -58,15 +58,18 @@ export default function AnnouncementsPage() {
     setIsLoading(true);
     
     try {
-      await createAnnouncement({
+      const newAnnouncement: Omit<Announcement, 'id'> = {
         title,
         content,
         priority,
         expiresAt: expiresAt ? new Date(expiresAt) : undefined,
         createdAt: new Date(),
+        userId: user?.uid || '',
         createdBy: user?.uid || '',
         createdByName: userData?.name || 'Admin'
-      });
+      };
+
+      await createAnnouncement(newAnnouncement);
 
       toast.success('Announcement created successfully');
       setTitle('');

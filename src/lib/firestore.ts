@@ -249,6 +249,9 @@ export interface Announcement {
   createdAt: Date
   expiresAt?: Date
   isFirstTimeShown?: boolean
+  priority?: 'low' | 'medium' | 'high'
+  createdBy?: string
+  createdByName?: string
 }
 
 // Helper functions for type conversion
