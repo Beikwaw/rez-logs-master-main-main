@@ -998,42 +998,37 @@ export const getTodaySleepoverRequests = async () => {
 };
 
 export async function getAllGuestRequests() {
-  const guestRef = collection(db, 'guest_registrations');
-  const q = query(guestRef, orderBy('createdAt', 'desc'));
-  const querySnapshot = await getDocs(q);
-  return querySnapshot.docs.map(doc => ({
-    id: doc.id,
-    ...doc.data(),
-    createdAt: doc.data().createdAt?.toDate() || new Date(),
-  }));
+  try {
+    const guestRequestsRef = collection(db, 'guest_requests');
+    const snapshot = await getDocs(guestRequestsRef);
+    return snapshot.docs.map(doc => {
+      const data = doc.data();
+      return {
+        id: doc.id,
+        ...data,
+        createdAt: data.createdAt?.toDate() || new Date(),
+        checkoutTime: data.checkoutTime?.toDate(),
+        fromDate: data.fromDate || new Date().toISOString().split('T')[0]
+      };
+    });
+  } catch (error) {
+    console.error('Error fetching all guest requests:', error);
+    throw error;
+  }
 }
 
-export const updateGuestStatus = async (id: string, status: 'pending' | 'approved' | 'rejected', adminResponse?: string) => {
-  const guestRef = doc(db, 'guest', id);
-  const guestSnap = await getDoc(guestRef);
-  
-  if (!guestSnap.exists()) {
-    throw new Error('Guest request not found');
-  }
-
-  const guest = guestSnap.data();
-  const now = new Date();
-
-  await updateDoc(guestRef, {
+export async function updateGuestStatus(
+  requestId: string,
+  status: 'approved' | 'rejected',
+  adminResponse: string
+) {
+  const guestRequestRef = doc(db, 'guest_requests', requestId);
+  await updateDoc(guestRequestRef, {
     status,
     adminResponse,
-    updatedAt: now
+    updatedAt: serverTimestamp(),
   });
-
-  // Create notification for the user
-  await createNotification({
-    userId: guest.userId,
-    title: 'Guest Registration Update',
-    message: `Guest registration for ${guest.guestName} has been ${status}`,
-    type: 'guest',
-    read: false
-  });
-};
+}
 
 //student api calls
 export async function getMyComplaints(userId:string){
@@ -1638,12 +1633,20 @@ export const getActiveSleepoverGuests = async (userId: string) => {
 export async function getAllGuestSignIns() {
   try {
     const querySnapshot = await getDocs(collection(db, 'guest_sign_ins'));
-    return querySnapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data(),
-      signInTime: doc.data().signInTime?.toDate(),
-      signOutTime: doc.data().signOutTime?.toDate(),
-    }));
+    return querySnapshot.docs.map(doc => {
+      const data = doc.data();
+      return {
+        id: doc.id,
+        guestName: data.guestName || '',
+        guestSurname: data.guestSurname || '',
+        tenantCode: data.tenantCode || '',
+        roomNumber: data.roomNumber || '',
+        guestPhoneNumber: data.guestPhoneNumber || '',
+        signInTime: data.signInTime?.toDate() || new Date(),
+        signOutTime: data.signOutTime?.toDate(),
+        additionalGuests: data.additionalGuests || []
+      };
+    });
   } catch (error) {
     console.error('Error fetching guest sign-ins:', error);
     throw error;
@@ -1673,16 +1676,20 @@ export async function getTodayGuestSignIns() {
     return querySnapshot.docs.map(doc => {
       const data = doc.data();
       const signInTime = toDate(data.signInTime);
-      const signOutTime = toDate(data.signOutTime);
       
       // Only return documents that have a valid signInTime
       if (!signInTime) return null;
       
       return {
         id: doc.id,
-        ...data,
+        guestName: data.guestName || '',
+        guestSurname: data.guestSurname || '',
+        tenantCode: data.tenantCode || '',
+        roomNumber: data.roomNumber || '',
+        guestPhoneNumber: data.guestPhoneNumber || '',
         signInTime,
-        signOutTime
+        signOutTime: toDate(data.signOutTime),
+        additionalGuests: data.additionalGuests || []
       };
     }).filter(Boolean); // Remove any null entries
   } catch (error) {
@@ -1979,4 +1986,68 @@ export async function rejectSleepoverRequest(requestId: string) {
     status: 'rejected',
     updatedAt: new Date(),
   });
+}
+
+export async function createGuestRequest(data: {
+  firstName: string;
+  lastName: string;
+  phoneNumber: string;
+  roomNumber: string;
+  purpose: string;
+  fromDate: string;
+  tenantCode: string;
+  userId: string;
+  status: 'active' | 'checked_out';
+  createdAt: Date;
+}) {
+  try {
+    const guestRef = doc(collection(db, 'guest_requests'));
+    await setDoc(guestRef, {
+      ...data,
+      createdAt: serverTimestamp(),
+    });
+    return guestRef.id;
+  } catch (error) {
+    console.error('Error creating guest request:', error);
+    throw error;
+  }
+}
+
+export async function getUserActiveGuests(userId: string) {
+  try {
+    const guestsRef = collection(db, 'guest_requests');
+    const q = query(
+      guestsRef,
+      where('userId', '==', userId),
+      where('status', '==', 'active')
+    );
+    
+    const querySnapshot = await getDocs(q);
+    return querySnapshot.docs.map(doc => {
+      const data = doc.data();
+      return {
+        id: doc.id,
+        ...data,
+        createdAt: data.createdAt?.toDate() || new Date(),
+        checkoutTime: data.checkoutTime?.toDate(),
+        fromDate: data.fromDate || new Date().toISOString().split('T')[0]
+      };
+    });
+  } catch (error) {
+    console.error('Error fetching active guests:', error);
+    throw error;
+  }
+}
+
+export async function updateGuestCheckout(guestId: string) {
+  try {
+    const guestRef = doc(db, 'guest_requests', guestId);
+    await updateDoc(guestRef, {
+      status: 'checked_out',
+      checkoutTime: serverTimestamp()
+    });
+  } catch (error) {
+    console.error('Error updating guest checkout:', error);
+    throw error;
+  }
 }

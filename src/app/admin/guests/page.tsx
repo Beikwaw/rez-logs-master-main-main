@@ -5,34 +5,47 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
-import { RefreshCw, UserPlus } from "lucide-react";
-import { getAllGuestRequests, updateGuestStatus } from '@/lib/firestore';
-import { toast } from 'sonner';
+import { RefreshCw } from "lucide-react";
+import { getAllGuestRequests } from '@/lib/firestore';
+import { toast } from 'react-hot-toast';
 import { format } from 'date-fns';
-import { RequestActions } from '@/components/admin/RequestActions';
 import { RefreshButton } from '@/components/ui/refresh-button';
 
-const formatDate = (date: any) => {
-  if (!date) return 'N/A';
-  if (date.toDate) {
-    // Handle Firestore Timestamp
-    return format(date.toDate(), 'PPP');
-  }
-  // Handle regular Date object
-  return format(new Date(date), 'PPP');
+interface GuestData {
+  id: string;
+  firstName: string;
+  lastName: string;
+  phoneNumber: string;
+  roomNumber: string;
+  purpose: string;
+  fromDate: string;
+  status: 'active' | 'checked_out';
+  tenantCode: string;
+  createdAt: Date;
+  checkoutTime?: Date;
+}
+
+const formatDate = (date: Date) => {
+  return new Date(date).toLocaleString('en-US', {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit'
+  });
 };
 
-export default function GuestsPage() {
-  const [guestRequests, setGuestRequests] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+export default function AdminGuestsPage() {
+  const [loading, setLoading] = useState(false);
+  const [guestRequests, setGuestRequests] = useState<GuestData[]>([]);
 
   useEffect(() => {
     fetchGuestRequests();
   }, []);
 
   const fetchGuestRequests = async () => {
+    setLoading(true);
     try {
-      setLoading(true);
       const requests = await getAllGuestRequests();
       setGuestRequests(requests);
     } catch (error) {
@@ -40,17 +53,6 @@ export default function GuestsPage() {
       toast.error('Failed to fetch guest requests');
     } finally {
       setLoading(false);
-    }
-  };
-
-  const handleStatusUpdate = async (id: string, status: string, adminResponse?: string) => {
-    try {
-      await updateGuestStatus(id, status as any, adminResponse);
-      await fetchGuestRequests();
-      toast.success('Guest status updated successfully');
-    } catch (error) {
-      console.error('Error updating guest status:', error);
-      toast.error('Failed to update guest status');
     }
   };
 
@@ -63,175 +65,106 @@ export default function GuestsPage() {
   }
 
   return (
-    <div className="container mx-auto py-6">
+    <div className="container mx-auto px-4 py-8">
       <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle>Guest Sign-In Requests</CardTitle>
-          <RefreshButton onClick={fetchGuestRequests} loading={loading} />
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <CardTitle>Guest Records</CardTitle>
+            <Button 
+              variant="outline" 
+              size="icon" 
+              onClick={fetchGuestRequests}
+              disabled={loading}
+            >
+              <RefreshCw className="h-4 w-4" />
+            </Button>
+          </div>
         </CardHeader>
         <CardContent>
           <Tabs defaultValue="all">
             <TabsList>
-              <TabsTrigger value="all">All Requests</TabsTrigger>
-              <TabsTrigger value="pending">Pending</TabsTrigger>
-              <TabsTrigger value="approved">Approved</TabsTrigger>
-              <TabsTrigger value="rejected">Rejected</TabsTrigger>
+              <TabsTrigger value="all">All Guests</TabsTrigger>
+              <TabsTrigger value="active">Active</TabsTrigger>
+              <TabsTrigger value="checked_out">Checked Out</TabsTrigger>
             </TabsList>
-            <TabsContent value="all" className="space-y-4">
-              {guestRequests.map((request) => (
-                <Card key={request.id}>
-                  <CardContent className="p-4">
-                    <div className="flex items-center justify-between">
-                      <div className="space-y-1">
-                        <h3 className="font-medium">Guest Sign-In Request</h3>
-                        <p className="text-sm text-muted-foreground">
-                          Guest: {request.firstName} {request.lastName}
-                        </p>
-                        <p className="text-sm text-muted-foreground">
-                          Phone: {request.phoneNumber}
-                        </p>
-                        <p className="text-sm text-muted-foreground">
-                          Room: {request.roomNumber}
-                        </p>
-                        <p className="text-sm text-muted-foreground">
-                          Purpose: {request.purpose}
-                        </p>
-                        <p className="text-sm text-muted-foreground">
-                          Date: {formatDate(request.fromDate)}
-                        </p>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Badge variant={
-                          request.status === 'approved' ? 'default' :
-                          request.status === 'pending' ? 'secondary' :
-                          'destructive'
-                        }>
-                          {request.status}
-                        </Badge>
-                        <RequestActions
-                          type="guest"
-                          data={request}
-                          onStatusUpdate={handleStatusUpdate}
-                        />
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </TabsContent>
-            <TabsContent value="pending">
-              {guestRequests
-                .filter((request) => request.status === 'pending')
-                .map((request) => (
+
+            <TabsContent value="all">
+              <div className="grid gap-4">
+                {guestRequests.map((request) => (
                   <Card key={request.id}>
-                    <CardContent className="p-4">
-                      <div className="flex items-center justify-between">
-                        <div className="space-y-1">
-                          <h3 className="font-medium">Guest Sign-In Request</h3>
-                          <p className="text-sm text-muted-foreground">
-                            Guest: {request.firstName} {request.lastName}
-                          </p>
-                          <p className="text-sm text-muted-foreground">
-                            Phone: {request.phoneNumber}
-                          </p>
-                          <p className="text-sm text-muted-foreground">
-                            Room: {request.roomNumber}
-                          </p>
-                          <p className="text-sm text-muted-foreground">
-                            Purpose: {request.purpose}
-                          </p>
-                          <p className="text-sm text-muted-foreground">
-                            Date: {formatDate(request.fromDate)}
-                          </p>
+                    <CardContent className="pt-6">
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <p className="font-semibold">{request.firstName} {request.lastName}</p>
+                          <p className="text-sm text-gray-500">Room: {request.roomNumber}</p>
+                          <p className="text-sm text-gray-500">Tenant Code: {request.tenantCode}</p>
                         </div>
-                        <div className="flex items-center gap-2">
-                          <Badge variant="secondary">pending</Badge>
-                          <RequestActions
-                            type="guest"
-                            data={request}
-                            onStatusUpdate={handleStatusUpdate}
-                          />
+                        <div>
+                          <p className="text-sm">Phone: {request.phoneNumber}</p>
+                          <p className="text-sm">Purpose: {request.purpose}</p>
+                          <p className="text-sm">Status: {request.status === 'active' ? 'Active' : 'Checked Out'}</p>
+                          {request.checkoutTime && (
+                            <p className="text-sm">Checked Out: {formatDate(request.checkoutTime)}</p>
+                          )}
                         </div>
                       </div>
                     </CardContent>
                   </Card>
                 ))}
+              </div>
             </TabsContent>
-            <TabsContent value="approved">
-              {guestRequests
-                .filter((request) => request.status === 'approved')
-                .map((request) => (
-                  <Card key={request.id}>
-                    <CardContent className="p-4">
-                      <div className="flex items-center justify-between">
-                        <div className="space-y-1">
-                          <h3 className="font-medium">Guest Sign-In Request</h3>
-                          <p className="text-sm text-muted-foreground">
-                            Guest: {request.firstName} {request.lastName}
-                          </p>
-                          <p className="text-sm text-muted-foreground">
-                            Phone: {request.phoneNumber}
-                          </p>
-                          <p className="text-sm text-muted-foreground">
-                            Room: {request.roomNumber}
-                          </p>
-                          <p className="text-sm text-muted-foreground">
-                            Purpose: {request.purpose}
-                          </p>
-                          <p className="text-sm text-muted-foreground">
-                            Date: {formatDate(request.fromDate)}
-                          </p>
+
+            <TabsContent value="active">
+              <div className="grid gap-4">
+                {guestRequests
+                  .filter(request => request.status === 'active')
+                  .map((request) => (
+                    <Card key={request.id}>
+                      <CardContent className="pt-6">
+                        <div className="grid grid-cols-2 gap-4">
+                          <div>
+                            <p className="font-semibold">{request.firstName} {request.lastName}</p>
+                            <p className="text-sm text-gray-500">Room: {request.roomNumber}</p>
+                            <p className="text-sm text-gray-500">Tenant Code: {request.tenantCode}</p>
+                          </div>
+                          <div>
+                            <p className="text-sm">Phone: {request.phoneNumber}</p>
+                            <p className="text-sm">Purpose: {request.purpose}</p>
+                            <p className="text-sm">Status: Active</p>
+                          </div>
                         </div>
-                        <div className="flex items-center gap-2">
-                          <Badge>approved</Badge>
-                          <RequestActions
-                            type="guest"
-                            data={request}
-                            onStatusUpdate={handleStatusUpdate}
-                          />
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
+                      </CardContent>
+                    </Card>
+                  ))}
+              </div>
             </TabsContent>
-            <TabsContent value="rejected">
-              {guestRequests
-                .filter((request) => request.status === 'rejected')
-                .map((request) => (
-                  <Card key={request.id}>
-                    <CardContent className="p-4">
-                      <div className="flex items-center justify-between">
-                        <div className="space-y-1">
-                          <h3 className="font-medium">Guest Sign-In Request</h3>
-                          <p className="text-sm text-muted-foreground">
-                            Guest: {request.firstName} {request.lastName}
-                          </p>
-                          <p className="text-sm text-muted-foreground">
-                            Phone: {request.phoneNumber}
-                          </p>
-                          <p className="text-sm text-muted-foreground">
-                            Room: {request.roomNumber}
-                          </p>
-                          <p className="text-sm text-muted-foreground">
-                            Purpose: {request.purpose}
-                          </p>
-                          <p className="text-sm text-muted-foreground">
-                            Date: {formatDate(request.fromDate)}
-                          </p>
+
+            <TabsContent value="checked_out">
+              <div className="grid gap-4">
+                {guestRequests
+                  .filter(request => request.status === 'checked_out')
+                  .map((request) => (
+                    <Card key={request.id}>
+                      <CardContent className="pt-6">
+                        <div className="grid grid-cols-2 gap-4">
+                          <div>
+                            <p className="font-semibold">{request.firstName} {request.lastName}</p>
+                            <p className="text-sm text-gray-500">Room: {request.roomNumber}</p>
+                            <p className="text-sm text-gray-500">Tenant Code: {request.tenantCode}</p>
+                          </div>
+                          <div>
+                            <p className="text-sm">Phone: {request.phoneNumber}</p>
+                            <p className="text-sm">Purpose: {request.purpose}</p>
+                            <p className="text-sm">Status: Checked Out</p>
+                            {request.checkoutTime && (
+                              <p className="text-sm">Checked Out: {formatDate(request.checkoutTime)}</p>
+                            )}
+                          </div>
                         </div>
-                        <div className="flex items-center gap-2">
-                          <Badge variant="destructive">rejected</Badge>
-                          <RequestActions
-                            type="guest"
-                            data={request}
-                            onStatusUpdate={handleStatusUpdate}
-                          />
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
+                      </CardContent>
+                    </Card>
+                  ))}
+              </div>
             </TabsContent>
           </Tabs>
         </CardContent>
