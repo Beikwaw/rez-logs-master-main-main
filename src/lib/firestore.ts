@@ -1,5 +1,5 @@
 import { initializeApp } from 'firebase/app';
-import {
+import { 
   getFirestore,
   collection,
   doc,
@@ -570,7 +570,7 @@ export const createAdmin = async (adminData: Omit<AdminData, 'id' | 'createdAt' 
 
     const adminRef = doc(collection(db, ADMINS_COLLECTION));
     const newAdmin: AdminData = {
-      ...adminData,
+    ...adminData,
       id: adminRef.id,
       createdAt: new Date(),
       updatedAt: new Date(),
@@ -592,16 +592,16 @@ export const getAdminByUserId = async (userId: string) => {
   }
 
   try {
-    const adminsRef = collection(db, ADMINS_COLLECTION);
-    const q = query(adminsRef, where('userId', '==', userId));
-    const querySnapshot = await getDocs(q);
-    
-    if (querySnapshot.empty) {
-      return null;
-    }
+  const adminsRef = collection(db, ADMINS_COLLECTION);
+  const q = query(adminsRef, where('userId', '==', userId));
+  const querySnapshot = await getDocs(q);
+  
+  if (querySnapshot.empty) {
+    return null;
+  }
 
-    const doc = querySnapshot.docs[0];
-    const data = doc.data();
+  const doc = querySnapshot.docs[0];
+  const data = doc.data();
 
     // Helper function to safely convert Firestore timestamp to Date
     const toDate = (timestamp: any): Date => {
@@ -611,13 +611,13 @@ export const getAdminByUserId = async (userId: string) => {
       return new Date(timestamp);
     };
 
-    return {
-      id: doc.id,
-      ...data,
+  return {
+    id: doc.id,
+    ...data,
       createdAt: toDate(data.createdAt),
       updatedAt: toDate(data.updatedAt),
       lastLogin: data.lastLogin ? toDate(data.lastLogin) : undefined
-    } as AdminData;
+  } as AdminData;
   } catch (error) {
     console.error('Error in getAdminByUserId:', error);
     throw error;
@@ -642,7 +642,7 @@ export const getAllAdmins = async () => {
 
 export const updateAdmin = async (adminId: string, adminData: Partial<AdminData>): Promise<void> => {
   try {
-    const adminRef = doc(db, ADMINS_COLLECTION, adminId);
+  const adminRef = doc(db, ADMINS_COLLECTION, adminId);
     const adminDoc = await getDoc(adminRef);
     
     if (!adminDoc.exists()) {
@@ -668,12 +668,12 @@ export const updateAdmin = async (adminId: string, adminData: Partial<AdminData>
         throw new Error('A superadmin already exists. Only one superadmin is allowed.');
       }
     }
-
-    await updateDoc(adminRef, {
+  
+  await updateDoc(adminRef, {
       ...adminData,
       updatedAt: new Date(),
       isSuperAdmin: adminData.type === 'superadmin' || currentAdmin.type === 'superadmin'
-    });
+  });
   } catch (error) {
     console.error('Error updating admin:', error);
     throw error;
@@ -682,7 +682,7 @@ export const updateAdmin = async (adminId: string, adminData: Partial<AdminData>
 
 export const deleteAdmin = async (adminId: string): Promise<void> => {
   try {
-    const adminRef = doc(db, ADMINS_COLLECTION, adminId);
+  const adminRef = doc(db, ADMINS_COLLECTION, adminId);
     const adminDoc = await getDoc(adminRef);
     
     if (!adminDoc.exists()) {
@@ -696,7 +696,7 @@ export const deleteAdmin = async (adminId: string): Promise<void> => {
       throw new Error('Cannot delete the superadmin');
     }
 
-    await deleteDoc(adminRef);
+  await deleteDoc(adminRef);
   } catch (error) {
     console.error('Error deleting admin:', error);
     throw error;
@@ -732,7 +732,7 @@ export const createSleepoverRequest = async (data: Omit<SleepoverRequest, 'id' |
   try {
     const securityCode = Math.floor(100000 + Math.random() * 900000).toString();
     const now = Timestamp.now();
-    
+
     // Calculate duration of stay
     const startDate = convertTimestampToDate(data.startDate);
     const endDate = convertTimestampToDate(data.endDate);
@@ -780,7 +780,7 @@ export const createMaintenanceRequest = async (data: {
       updatedAt: serverTimestamp()
     };
     const docRef = await addDoc(maintenanceRef, newRequest);
-    return docRef.id;
+  return docRef.id;
   } catch (error) {
     console.error('Error creating maintenance request:', error);
     throw error;
@@ -982,11 +982,11 @@ export async function getAllMaintenanceRequests(): Promise<MaintenanceRequest[]>
       )
     );
 
-    return querySnapshot.docs.map(doc => {
-      const data = doc.data();
-      return {
-        id: doc.id,
-        ...data,
+  return querySnapshot.docs.map(doc => {
+    const data = doc.data();
+    return {
+      id: doc.id,
+      ...data,
         createdAt: convertTimestampToDate(data.createdAt),
         updatedAt: data.updatedAt ? convertTimestampToDate(data.updatedAt) : undefined
       } as MaintenanceRequest;
@@ -1145,7 +1145,7 @@ export async function getAllGuestRequests() {
     return snapshot.docs.map(doc => {
       const data = doc.data();
       return {
-        id: doc.id,
+    id: doc.id,
         firstName: data.firstName || '',
         lastName: data.lastName || '',
         phoneNumber: data.phoneNumber || '',
@@ -1260,9 +1260,9 @@ export async function getMyMaintenanceRequests(userId: string) {
       orderBy('createdAt', 'desc')
     )
     const querySnapshot = await getDocs(q)
-    return querySnapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data(),
+  return querySnapshot.docs.map(doc => ({
+    id: doc.id,
+    ...doc.data(),
       createdAt: convertTimestampToDate(doc.data().createdAt as Timestamp | Date)
     }))
   } catch (error) {
@@ -1539,7 +1539,7 @@ export const getAnnouncements = async () => {
     return querySnapshot.docs.map(doc => {
       const data = doc.data();
       return {
-        id: doc.id,
+      id: doc.id,
         ...data,
         createdAt: toDate(data.createdAt) || new Date(),
         expiresAt: toDate(data.expiresAt),
@@ -1623,7 +1623,7 @@ export const generateDetailedReport = async (tenantCode: string, date: Date): Pr
     const sleepovers = sleepoversSnapshot.docs.map(doc => {
       const data = doc.data();
       return {
-        id: doc.id,
+      id: doc.id,
         studentName: data.studentName || '',
         date: convertTimestampToDate(data.createdAt),
         status: data.status as SleepoverStatus,
@@ -1642,7 +1642,7 @@ export const generateDetailedReport = async (tenantCode: string, date: Date): Pr
     const maintenance = maintenanceSnapshot.docs.map(doc => {
       const data = doc.data();
       return {
-        id: doc.id,
+      id: doc.id,
         title: data.title || '',
         description: data.description || '',
         status: data.status as MaintenanceStatus,
@@ -1661,7 +1661,7 @@ export const generateDetailedReport = async (tenantCode: string, date: Date): Pr
     const complaints = complaintsSnapshot.docs.map(doc => {
       const data = doc.data();
       return {
-        id: doc.id,
+      id: doc.id,
         title: data.title || '',
         description: data.description || '',
         status: data.status as ComplaintStatus,
@@ -1764,7 +1764,7 @@ export async function getAllGuestSignIns() {
     return querySnapshot.docs.map(doc => {
       const data = doc.data();
       return {
-        id: doc.id,
+      id: doc.id,
         guestName: data.guestName || '',
         guestSurname: data.guestSurname || '',
         tenantCode: data.tenantCode || '',
@@ -1903,9 +1903,9 @@ export async function getAllApplications() {
   const applicationsRef = collection(db, 'applications');
   const q = query(applicationsRef, orderBy('createdAt', 'desc'));
   const querySnapshot = await getDocs(q);
-  return querySnapshot.docs.map(doc => ({
-    id: doc.id,
-    ...doc.data(),
+    return querySnapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data(),
     createdAt: convertTimestampToDate(doc.data().createdAt as Timestamp | Date)
   }));
 }
@@ -1977,7 +1977,7 @@ export async function getUserActiveGuests(userId: string) {
       where('userId', '==', userId),
       where('status', '==', 'active')
     );
-    
+
     const querySnapshot = await getDocs(q);
     return querySnapshot.docs.map(doc => {
       const data = doc.data();
@@ -2008,7 +2008,7 @@ export async function checkoutSleepoverGuest(userId: string) {
       where('status', '==', 'approved')
     );
 
-    const querySnapshot = await getDocs(q);
+  const querySnapshot = await getDocs(q);
     
     if (querySnapshot.empty) {
       throw new Error('No approved sleepover found');
@@ -2017,9 +2017,9 @@ export async function checkoutSleepoverGuest(userId: string) {
     // Find the most recent active sleepover
     const activeSleepover = querySnapshot.docs
       .map(doc => {
-        const data = doc.data();
-        return {
-          id: doc.id,
+    const data = doc.data();
+    return {
+      id: doc.id,
           guestName: data.guestName || '',
           startDate: convertTimestampToDate(data.startDate),
           endDate: convertTimestampToDate(data.endDate),
@@ -2088,12 +2088,12 @@ export const getAllManagementRequests = async (): Promise<ManagementRequest[]> =
     const querySnapshot = await getDocs(
       query(
         collection(db, 'management_requests'),
-        orderBy('createdAt', 'desc')
+      orderBy('createdAt', 'desc')
       )
     );
 
     return querySnapshot.docs.map(doc => ({
-      id: doc.id,
+        id: doc.id,
       ...doc.data(),
       createdAt: convertTimestampToDate(doc.data().createdAt)
     })) as ManagementRequest[];
