@@ -6,6 +6,7 @@ import { useAuth } from '@/lib/auth';
 import { format } from 'date-fns';
 import { toast } from 'react-hot-toast';
 import { SleepoverRequest } from '@/lib/firestore';
+import { Timestamp } from 'firebase/firestore';
 
 export default function AdminSleepoverPage() {
   const { user } = useAuth();
@@ -146,11 +147,11 @@ export default function AdminSleepoverPage() {
                     </div>
                     <div>
                       <p className="font-medium">Check-in</p>
-                      <p>{format(request.startDate, 'PPP')}</p>
+                      <p>{format(request.startDate instanceof Timestamp ? request.startDate.toDate() : request.startDate, 'PPP')}</p>
                     </div>
                     <div>
                       <p className="font-medium">Check-out</p>
-                      <p>{format(request.endDate, 'PPP')}</p>
+                      <p>{format(request.endDate instanceof Timestamp ? request.endDate.toDate() : request.endDate, 'PPP')}</p>
                     </div>
                   </div>
 
