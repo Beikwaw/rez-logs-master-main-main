@@ -44,6 +44,11 @@ export default function NewbiesPage() {
   };
 
   const handleApplication = async (userId: string, status: 'accepted' | 'denied', message: string) => {
+    if (!userData) {
+      toast.error('User data not available');
+      return;
+    }
+
     try {
       await processRequest(userId, status, message, userData.id);
       toast.success(`Application ${status} successfully`);
