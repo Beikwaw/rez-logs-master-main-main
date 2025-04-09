@@ -5,14 +5,15 @@ import { getAllSleepoverRequests, getTodaySleepoverRequests, approveSleepoverReq
 import { useAuth } from '@/lib/auth';
 import { format } from 'date-fns';
 import { toast } from 'react-hot-toast';
+import { SleepoverRequest } from '@/lib/firestore';
 
 export default function AdminSleepoverPage() {
   const { user } = useAuth();
-  const [requests, setRequests] = useState([]);
-  const [todayRequests, setTodayRequests] = useState([]);
+  const [requests, setRequests] = useState<SleepoverRequest[]>([]);
+  const [todayRequests, setTodayRequests] = useState<SleepoverRequest[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [selectedRequest, setSelectedRequest] = useState(null);
+  const [selectedRequest, setSelectedRequest] = useState<SleepoverRequest | null>(null);
   const [adminResponse, setAdminResponse] = useState('');
   const [signOutCode, setSignOutCode] = useState('');
   const [showHistory, setShowHistory] = useState(false);
