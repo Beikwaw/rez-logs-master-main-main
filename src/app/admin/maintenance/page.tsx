@@ -6,6 +6,7 @@ import { useAuth } from '@/lib/auth';
 import { format } from 'date-fns';
 import { toast } from 'react-hot-toast';
 import { MaintenanceRequest } from '@/lib/firestore';
+import { Timestamp } from 'firebase/firestore';
 
 export default function AdminMaintenancePage() {
   const { user } = useAuth();
@@ -123,12 +124,12 @@ export default function AdminMaintenancePage() {
                     </div>
                     <div>
                       <p className="font-medium">Submitted</p>
-                      <p>{format(request.createdAt, 'PPP p')}</p>
+                      <p>{format(request.createdAt instanceof Timestamp ? request.createdAt.toDate() : request.createdAt, 'PPP p')}</p>
                     </div>
                     {request.updatedAt && (
                       <div>
                         <p className="font-medium">Last Updated</p>
-                        <p>{format(request.updatedAt, 'PPP p')}</p>
+                        <p>{format(request.updatedAt instanceof Timestamp ? request.updatedAt.toDate() : request.updatedAt, 'PPP p')}</p>
                       </div>
                     )}
                   </div>
