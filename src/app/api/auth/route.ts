@@ -1,28 +1,18 @@
 import { NextResponse } from 'next/server';
-import { auth, db } from '@/lib/firebase';
-import { createUserWithEmailAndPassword, signInWithEmailAndPassword } from 'firebase/auth';
-import { doc, setDoc, getDoc } from 'firebase/firestore';
 import { cookies } from 'next/headers';
-import { UserData } from '@/lib/firestore';
-import { getAuth } from 'firebase-admin/auth';
-import { initializeApp, getApps } from 'firebase-admin/app';
-
-// Initialize Firebase Admin if not already initialized
-if (!getApps().length) {
-  initializeApp();
-}
+import { adminAuth } from '@/lib/firebase-admin';
 
 export async function POST(request: Request) {
   try {
     const { idToken } = await request.json();
     
     // Create session cookie using Firebase Admin SDK
-    const auth = getAuth();
     const expiresIn = 60 * 60 * 24 * 5 * 1000; // 5 days
-    const sessionCookie = await auth.createSessionCookie(idToken, { expiresIn });
+    const sessionCookie = await adminAuth.createSessionCookie(idToken, { expiresIn });
     
     // Set the session cookie
-    cookies().set('session', sessionCookie, {
+    const cookieStore = await cookies();
+    cookieStore.set('session', sessionCookie, {
       maxAge: expiresIn,
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
@@ -41,14 +31,14 @@ export async function POST(request: Request) {
 
 export async function GET() {
   try {
-    const sessionCookie = cookies().get('session')?.value;
+    const cookieStore = await cookies();
+    const sessionCookie = cookieStore.get('session')?.value;
     
     if (!sessionCookie) {
       return NextResponse.json({ isAuthenticated: false });
     }
 
-    const auth = getAuth();
-    const decodedClaims = await auth.verifySessionCookie(sessionCookie);
+    const decodedClaims = await adminAuth.verifySessionCookie(sessionCookie);
     
     return NextResponse.json({ 
       isAuthenticated: true,
@@ -62,7 +52,8 @@ export async function GET() {
 
 export async function DELETE() {
   try {
-    cookies().delete('session');
+    const cookieStore = await cookies();
+    cookieStore.delete('session');
     return NextResponse.json({ status: 'success' });
   } catch (error) {
     console.error('Error deleting session cookie:', error);
