@@ -146,8 +146,8 @@ export interface MaintenanceRequest {
   preferredDate?: string;
   priority: 'low' | 'medium' | 'high';
   status: MaintenanceStatus;
-  createdAt: Date;
-  updatedAt: Date;
+  createdAt: Timestamp | Date;
+  updatedAt: Timestamp | Date;
   adminResponse?: string;
   tenantCode?: string;
   images?: string[];

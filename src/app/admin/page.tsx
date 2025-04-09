@@ -31,6 +31,7 @@ import { Button } from "@/components/ui/button";
 import { toast } from "react-hot-toast";
 import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
+import { Timestamp } from 'firebase/firestore';
 
 interface GuestData {
   id: string;
@@ -116,7 +117,7 @@ export default function AdminDashboardPage() {
     });
 
     const todayMaintenance = maintenance.filter(request => {
-      const createdAt = request.createdAt instanceof Date ? request.createdAt : request.createdAt.toDate();
+      const createdAt = request.createdAt instanceof Timestamp ? request.createdAt.toDate() : request.createdAt;
       return createdAt.toISOString().split('T')[0] === today;
     });
 
@@ -234,12 +235,12 @@ export default function AdminDashboardPage() {
       doc.text(`Total Requests: ${dailyStats.totalMaintenance}`, 20, maintenanceY + 10);
 
       const maintenanceData = maintenanceRequests.filter(request => {
-        const createdAt = request.createdAt instanceof Date ? request.createdAt : request.createdAt.toDate();
+        const createdAt = request.createdAt instanceof Timestamp ? request.createdAt.toDate() : request.createdAt;
         return format(createdAt, 'yyyy-MM-dd') === format(new Date(), 'yyyy-MM-dd');
       }).map(request => [
         request.title,
         request.status,
-        format(request.createdAt instanceof Date ? request.createdAt : request.createdAt.toDate(), 'p')
+        format(request.createdAt instanceof Timestamp ? request.createdAt.toDate() : request.createdAt, 'p')
       ]);
 
       autoTable(doc, {
