@@ -941,15 +941,16 @@ export const assignStaffToRequest = async (requestId: string, staffId: string) =
   });
 };
 
-export async function getAllComplaints() {
+export async function getAllComplaints(): Promise<Complaint[]> {
   const complaintsRef = collection(db, 'complaints');
   const q = query(complaintsRef, orderBy('createdAt', 'desc'));
   const querySnapshot = await getDocs(q);
   return querySnapshot.docs.map(doc => ({
     id: doc.id,
     ...doc.data(),
-    createdAt: convertTimestampToDate(doc.data().createdAt as Timestamp | Date)
-  }));
+    createdAt: convertTimestampToDate(doc.data().createdAt as Timestamp | Date),
+    updatedAt: convertTimestampToDate(doc.data().updatedAt as Timestamp | Date)
+  })) as Complaint[];
 }
 
 export const updateComplaintStatus = async (
@@ -1073,7 +1074,7 @@ export async function assignStaffToMaintenance(maintenanceId: string, staffId: s
   });
 }
 
-export const getAllSleepoverRequests = async () => {
+export const getAllSleepoverRequests = async (): Promise<SleepoverRequest[]> => {
   const requestsRef = collection(db, 'sleepover_requests');
   const q = query(requestsRef, orderBy('createdAt', 'desc'));
   const requestsSnap = await getDocs(q);
@@ -1096,8 +1097,8 @@ export const getAllSleepoverRequests = async () => {
       startDate: toDate(data.startDate),
       endDate: toDate(data.endDate),
       signOutTime: data.signOutTime ? toDate(data.signOutTime) : undefined
-    };
-  }) as SleepoverRequest[];
+    } as SleepoverRequest;
+  });
 };
 
 export const getTodaySleepoverRequests = async () => {
@@ -1138,14 +1139,14 @@ export const getTodaySleepoverRequests = async () => {
   }) as SleepoverRequest[];
 };
 
-export async function getAllGuestRequests() {
+export async function getAllGuestRequests(): Promise<GuestRequest[]> {
   try {
     const guestRequestsRef = collection(db, 'guest_requests');
     const snapshot = await getDocs(guestRequestsRef);
     return snapshot.docs.map(doc => {
       const data = doc.data();
       return {
-    id: doc.id,
+        id: doc.id,
         firstName: data.firstName || '',
         lastName: data.lastName || '',
         phoneNumber: data.phoneNumber || '',

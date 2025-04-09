@@ -46,22 +46,6 @@ interface GuestData {
   checkoutTime?: Date;
 }
 
-interface SleepoverRequest {
-  id: string;
-  studentName: string;
-  roomNumber: string;
-  status: string;
-  createdAt: Date;
-}
-
-interface MaintenanceRequest {
-  id: string;
-  title: string;
-  description: string;
-  status: string;
-  createdAt: Date;
-}
-
 export default function AdminDashboardPage() {
   const { user } = useAuth();
   const router = useRouter();
@@ -92,10 +76,10 @@ export default function AdminDashboardPage() {
       ]);
       
       setGuestRequests(guests);
-      setComplaints(complaintsData);
+      setComplaints(complaintsData as Complaint[]);
       setSleepoverRequests(sleepovers);
       setMaintenanceRequests(maintenance);
-      updateDailyStats(guests, complaintsData, sleepovers, maintenance);
+      updateDailyStats(guests, complaintsData as Complaint[], sleepovers, maintenance);
     } catch (error) {
       console.error('Error fetching data:', error);
       toast.error('Failed to fetch data');
@@ -121,17 +105,20 @@ export default function AdminDashboardPage() {
       (guest.checkoutTime && new Date(guest.checkoutTime).toISOString().split('T')[0] === today)
     );
 
-    const todayComplaints = complaints.filter(complaint => 
-      new Date(complaint.createdAt).toISOString().split('T')[0] === today
-    );
+    const todayComplaints = complaints.filter(complaint => {
+      const createdAt = complaint.createdAt instanceof Date ? complaint.createdAt : complaint.createdAt.toDate();
+      return createdAt.toISOString().split('T')[0] === today;
+    });
 
-    const todaySleepovers = sleepovers.filter(request => 
-      new Date(request.createdAt).toISOString().split('T')[0] === today
-    );
+    const todaySleepovers = sleepovers.filter(request => {
+      const createdAt = request.createdAt instanceof Date ? request.createdAt : request.createdAt.toDate();
+      return createdAt.toISOString().split('T')[0] === today;
+    });
 
-    const todayMaintenance = maintenance.filter(request => 
-      new Date(request.createdAt).toISOString().split('T')[0] === today
-    );
+    const todayMaintenance = maintenance.filter(request => {
+      const createdAt = request.createdAt instanceof Date ? request.createdAt : request.createdAt.toDate();
+      return createdAt.toISOString().split('T')[0] === today;
+    });
 
     setDailyStats({
       totalGuests: todayGuests.length,
@@ -201,12 +188,13 @@ export default function AdminDashboardPage() {
       doc.setFontSize(12);
       doc.text(`Total Complaints: ${dailyStats.totalComplaints}`, 20, complaintsY + 10);
 
-      const complaintData = complaints.filter(complaint => 
-        format(new Date(complaint.createdAt), 'yyyy-MM-dd') === format(new Date(), 'yyyy-MM-dd')
-      ).map(complaint => [
+      const complaintData = complaints.filter(complaint => {
+        const createdAt = complaint.createdAt instanceof Date ? complaint.createdAt : complaint.createdAt.toDate();
+        return format(createdAt, 'yyyy-MM-dd') === format(new Date(), 'yyyy-MM-dd');
+      }).map(complaint => [
         complaint.title,
         complaint.status,
-        format(new Date(complaint.createdAt), 'p')
+        format(complaint.createdAt instanceof Date ? complaint.createdAt : complaint.createdAt.toDate(), 'p')
       ]);
 
       autoTable(doc, {
@@ -222,13 +210,14 @@ export default function AdminDashboardPage() {
       doc.setFontSize(12);
       doc.text(`Total Requests: ${dailyStats.totalSleepovers}`, 20, sleepoverY + 10);
 
-      const sleepoverData = sleepoverRequests.filter(request => 
-        format(new Date(request.createdAt), 'yyyy-MM-dd') === format(new Date(), 'yyyy-MM-dd')
-      ).map(request => [
-        request.studentName,
+      const sleepoverData = sleepoverRequests.filter(request => {
+        const createdAt = request.createdAt instanceof Date ? request.createdAt : request.createdAt.toDate();
+        return format(createdAt, 'yyyy-MM-dd') === format(new Date(), 'yyyy-MM-dd');
+      }).map(request => [
+        request.guestName,
         request.roomNumber,
         request.status,
-        format(new Date(request.createdAt), 'p')
+        format(request.createdAt instanceof Date ? request.createdAt : request.createdAt.toDate(), 'p')
       ]);
 
       autoTable(doc, {
@@ -244,12 +233,13 @@ export default function AdminDashboardPage() {
       doc.setFontSize(12);
       doc.text(`Total Requests: ${dailyStats.totalMaintenance}`, 20, maintenanceY + 10);
 
-      const maintenanceData = maintenanceRequests.filter(request => 
-        format(new Date(request.createdAt), 'yyyy-MM-dd') === format(new Date(), 'yyyy-MM-dd')
-      ).map(request => [
+      const maintenanceData = maintenanceRequests.filter(request => {
+        const createdAt = request.createdAt instanceof Date ? request.createdAt : request.createdAt.toDate();
+        return format(createdAt, 'yyyy-MM-dd') === format(new Date(), 'yyyy-MM-dd');
+      }).map(request => [
         request.title,
         request.status,
-        format(new Date(request.createdAt), 'p')
+        format(request.createdAt instanceof Date ? request.createdAt : request.createdAt.toDate(), 'p')
       ]);
 
       autoTable(doc, {
