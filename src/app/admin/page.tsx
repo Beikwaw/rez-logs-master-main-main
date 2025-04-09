@@ -46,14 +46,6 @@ interface GuestData {
   checkoutTime?: Date;
 }
 
-interface Complaint {
-  id: string;
-  title: string;
-  description: string;
-  status: string;
-  createdAt: Date;
-}
-
 interface SleepoverRequest {
   id: string;
   studentName: string;
