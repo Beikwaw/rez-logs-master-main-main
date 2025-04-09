@@ -1929,18 +1929,20 @@ export async function rejectApplication(applicationId: string, adminResponse: st
   });
 }
 
-export async function approveSleepoverRequest(requestId: string) {
+export async function approveSleepoverRequest(requestId: string, adminResponse: string) {
   const requestRef = doc(db, 'sleepover_requests', requestId);
   await updateDoc(requestRef, {
     status: 'approved',
+    adminResponse,
     updatedAt: new Date(),
   });
 }
 
-export async function rejectSleepoverRequest(requestId: string) {
+export async function rejectSleepoverRequest(requestId: string, adminResponse: string) {
   const requestRef = doc(db, 'sleepover_requests', requestId);
   await updateDoc(requestRef, {
     status: 'rejected',
+    adminResponse,
     updatedAt: new Date(),
   });
 }
