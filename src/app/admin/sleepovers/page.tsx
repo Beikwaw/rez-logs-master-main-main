@@ -59,12 +59,19 @@ export default function AdminSleepoversPage() {
 
         return {
           id: doc.id,
-          ...data,
+          tenantCode: data.tenantCode || '',
+          roomNumber: data.roomNumber || '',
+          guestName: data.guestName || '',
+          guestSurname: data.guestSurname || '',
+          guestPhone: data.guestPhone || '',
           startDate: toDate(data.startDate),
           endDate: toDate(data.endDate),
+          additionalGuests: data.additionalGuests || [],
+          status: data.status || 'pending',
           createdAt: toDate(data.createdAt),
-          updatedAt: toDate(data.updatedAt)
-        };
+          updatedAt: toDate(data.updatedAt),
+          adminResponse: data.adminResponse || ''
+        } as SleepoverRequest;
       });
       setRequests(requestsData);
     } catch (error) {
