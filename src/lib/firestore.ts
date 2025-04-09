@@ -77,7 +77,7 @@ export interface UserData {
   surname: string;
   full_name: string;
   phone?: string;
-  role: 'student' | 'newbie';
+  role: 'student' | 'newbie' | 'admin';
   createdAt: Date;
   updatedAt: Date;
   applicationStatus?: 'accepted' | 'denied' | 'pending';
