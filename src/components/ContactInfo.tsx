@@ -1,52 +1,44 @@
-import React from 'react';
-import { FaEnvelope, FaPhone, FaGlobe } from 'react-icons/fa';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Mail, Phone } from 'lucide-react';
 
-const ContactInfo = () => {
-  const contactInfo = [
-    {
-      title: 'Maintenance',
-      email: 'maintenance@mydomain.co.za',
-      phone: '011 234 5678'
-    },
-    {
-      title: 'Security',
-      email: 'security@mydomain.co.za',
-      phone: '011 234 5679'
-    }
-  ];
-
+export function ContactInfo() {
   return (
-    <div className="bg-white rounded-lg shadow-md p-6">
-      <h2 className="text-xl font-semibold mb-4 text-gray-800">Contact Information</h2>
-      <div className="space-y-4">
-        {contactInfo.map((contact, index) => (
-          <div key={index} className="flex items-start space-x-3">
-            <div className="text-blue-600 mt-1">
-              {contact.icon}
-            </div>
+    <Card className="mt-8">
+      <CardHeader>
+        <CardTitle>Contact Information</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <div className="space-y-4">
+          <div className="flex items-center space-x-2">
+            <Mail className="h-4 w-4 text-muted-foreground" />
             <div>
-              <h3 className="font-medium text-gray-700">{contact.title}</h3>
-              {contact.email ? (
-                <a 
-                  href={`mailto:${contact.email}`}
-                  className="text-blue-600 hover:text-blue-800"
-                >
-                  {contact.email}
-                </a>
-              ) : (
-                <a 
-                  href={`tel:${contact.phone}`}
-                  className="text-blue-600 hover:text-blue-800"
-                >
-                  {contact.phone}
-                </a>
-              )}
+              <p className="font-medium">Management</p>
+              <p className="text-sm text-muted-foreground">obsadmin@mydomainliving.co.za</p>
             </div>
           </div>
-        ))}
-      </div>
-    </div>
+          <div className="flex items-center space-x-2">
+            <Mail className="h-4 w-4 text-muted-foreground" />
+            <div>
+              <p className="font-medium">Finance</p>
+              <p className="text-sm text-muted-foreground">carmen@swish.co.za</p>
+            </div>
+          </div>
+          <div className="flex items-center space-x-2">
+            <Phone className="h-4 w-4 text-muted-foreground" />
+            <div>
+              <p className="font-medium">Security</p>
+              <p className="text-sm text-muted-foreground">0682040814</p>
+            </div>
+          </div>
+          <div className="flex items-center space-x-2">
+            <Phone className="h-4 w-4 text-muted-foreground" />
+            <div>
+              <p className="font-medium">Tech Team</p>
+              <p className="text-sm text-muted-foreground">0787578408</p>
+            </div>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
   );
-};
-
-export default ContactInfo; 
+} 

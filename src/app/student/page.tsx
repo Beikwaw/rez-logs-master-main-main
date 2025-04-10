@@ -21,7 +21,7 @@ import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import Link from 'next/link';
 import { Button } from "@/components/ui/button";
-import ContactInfo from '@/components/ContactInfo';
+import { ContactInfo } from '@/components/ContactInfo';
 
 interface Announcement {
   id: string;
@@ -204,7 +204,7 @@ export default function DashboardPage() {
         </div>
 
         {/* Navigation Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
           {navigationItems.map((item) => (
             <Link key={item.href} href={item.href}>
               <Card className="hover:bg-gray-50 transition-colors cursor-pointer">
@@ -232,7 +232,7 @@ export default function DashboardPage() {
         <ContactInfo />
 
         {/* Recent Activity */}
-        <div className="bg-white rounded-lg shadow-md p-6">
+        <div className="bg-white rounded-lg shadow-md p-6 mt-8">
           <h2 className="text-xl font-semibold mb-4">Recent Activity</h2>
           <div className="space-y-3">
             <Link 
