@@ -41,9 +41,12 @@ export default function ComplaintsPage() {
   const fetchComplaints = async () => {
     if (!user) return;
     try {
-      const allComplaints = await getComplaints();
-      const userComplaints = allComplaints.filter(complaint => complaint.userId === user.uid);
-      setComplaints(userComplaints);
+      const today = new Date();
+      const startOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+      const endOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 1);
+      
+      const allComplaints = await getComplaints(user.uid, startOfDay, endOfDay);
+      setComplaints(allComplaints);
     } catch (error) {
       console.error('Error fetching complaints:', error);
     } finally {
