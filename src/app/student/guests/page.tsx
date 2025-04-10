@@ -1,7 +1,6 @@
 "use client"
 
-import type React from "react"
-import { useState, useEffect } from "react"
+import React, { useState, useEffect, useCallback } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -14,6 +13,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Checkbox } from "@/components/ui/checkbox"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { useAuth } from '@/lib/auth'
+import { GuestRegistrationForm } from "@/components/forms/GuestRegistrationForm"
 
 interface GuestData {
   id: string
@@ -37,7 +37,7 @@ interface AdditionalGuest {
 }
 
 export default function GuestRegistrationPage() {
-  const { user } = useAuth()
+  const { user, userData } = useAuth()
   const [loading, setLoading] = useState(false)
   const [activeGuests, setActiveGuests] = useState<GuestData[]>([])
   const [showConfirmationDialog, setShowConfirmationDialog] = useState(false)
@@ -54,23 +54,34 @@ export default function GuestRegistrationPage() {
     fromDate: new Date().toISOString().split('T')[0],
     tenantCode: ''
   })
+  const [showForm, setShowForm] = useState(false)
 
-  useEffect(() => {
-    if (user) {
-      fetchActiveGuests()
-    }
-  }, [user])
-
-  const fetchActiveGuests = async () => {
+  const fetchActiveGuests = useCallback(async () => {
     try {
-      if (!user) return
+      if (!user?.uid) return
       const guests = await getUserActiveGuests(user.uid)
-      setActiveGuests(guests)
+      setActiveGuests(guests as GuestData[])
     } catch (error) {
       console.error('Error fetching active guests:', error)
       toast.error("Failed to fetch active guests")
     }
-  }
+  }, [user?.uid])
+
+  useEffect(() => {
+    if (user?.uid) {
+      fetchActiveGuests()
+    }
+  }, [fetchActiveGuests])
+
+  useEffect(() => {
+    if (userData) {
+      setFormData(prev => ({
+        ...prev,
+        roomNumber: userData.room_number,
+        tenantCode: userData.tenant_code
+      }))
+    }
+  }, [userData])
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target
@@ -102,7 +113,7 @@ export default function GuestRegistrationPage() {
     setLoading(true)
 
     try {
-      if (!user) {
+      if (!user || !userData) {
         throw new Error('User not authenticated')
       }
 
@@ -115,7 +126,7 @@ export default function GuestRegistrationPage() {
         ...formData,
         userId: user.uid,
         createdAt: new Date(),
-        status: 'active'
+        status: 'active' as const
       }
 
       await createGuestRequest(mainGuestData)
@@ -142,10 +153,10 @@ export default function GuestRegistrationPage() {
         firstName: '',
         lastName: '',
         phoneNumber: '',
-        roomNumber: '',
+        roomNumber: userData.room_number,
         purpose: '',
         fromDate: new Date().toISOString().split('T')[0],
-        tenantCode: ''
+        tenantCode: userData.tenant_code
       })
       setAdditionalGuests([{ firstName: '', lastName: '', phoneNumber: '' }])
       setAddMoreGuests(false)
@@ -180,6 +191,21 @@ export default function GuestRegistrationPage() {
       console.error('Error checking out guest:', error)
       toast.error("Failed to check out guest")
     }
+  }
+
+  const handleSuccess = () => {
+    // Handle success logic
+  }
+
+  if (!user || !userData) {
+    return (
+      <div className="container mx-auto px-4 py-8">
+        <div className="text-center">
+          <h1 className="text-2xl font-bold mb-4">Please Sign In</h1>
+          <p className="text-gray-600">You need to be signed in to register guests.</p>
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -218,6 +244,24 @@ export default function GuestRegistrationPage() {
             </TabsList>
 
             <TabsContent value="register">
+              {showForm && (
+                <Card className="mb-6">
+                  <CardHeader>
+                    <CardTitle>New Guest Registration</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <GuestRegistrationForm
+                      userId={user.uid}
+                      userData={{
+                        room_number: userData?.room_number || '',
+                        tenant_code: userData?.tenant_code || ''
+                      }}
+                      onSuccess={handleSuccess}
+                      onCancel={() => setShowForm(false)}
+                    />
+                  </CardContent>
+                </Card>
+              )}
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
@@ -259,20 +303,18 @@ export default function GuestRegistrationPage() {
                     <Label htmlFor="roomNumber">Room Number</Label>
                     <Input
                       id="roomNumber"
-                      name="roomNumber"
-                      value={formData.roomNumber}
-                      onChange={handleInputChange}
-                      required
+                      value={userData.room_number}
+                      readOnly
+                      className="bg-gray-100"
                     />
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="tenantCode">Tenant Code</Label>
                     <Input
                       id="tenantCode"
-                      name="tenantCode"
-                      value={formData.tenantCode}
-                      onChange={handleInputChange}
-                      required
+                      value={userData.tenant_code}
+                      readOnly
+                      className="bg-gray-100"
                     />
                   </div>
                 </div>

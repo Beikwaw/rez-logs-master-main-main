@@ -12,7 +12,8 @@ import {
   AlertCircle, 
   LogOut, 
   User,
-  UserPlus
+  UserPlus,
+  InfoIcon
 } from 'lucide-react';
 import { getMyComplaints, getMyGuestRequests, getMySleepoverRequests, getMyMaintenanceRequests, getAnnouncements } from '@/lib/firestore';
 import { AnnouncementPopup } from "@/components/AnnouncementPopup";
@@ -22,6 +23,8 @@ import { toast } from 'sonner';
 import Link from 'next/link';
 import { Button } from "@/components/ui/button";
 import { ContactInfo } from '@/components/ContactInfo';
+import { Label } from "@/components/ui/label";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 interface Announcement {
   id: string;
@@ -143,13 +146,32 @@ export default function DashboardPage() {
       </header>
 
       <div className="container mx-auto px-4 py-8">
-        {/* Welcome Section */}
-        <div className="mb-8">
-          <h2 className="text-2xl font-bold mb-2">Welcome, {userData?.full_name}</h2>
-          <p className="text-muted-foreground">
-            Manage your accommodation requests and stay updated with announcements
-          </p>
-        </div>
+        <Card className="mb-6">
+          <CardHeader>
+            <CardTitle>Welcome, {userData?.full_name}</CardTitle>
+            <CardDescription>Your Student Information</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label className="text-sm font-medium">Room Number</Label>
+                <p className="text-lg font-semibold">{userData?.room_number}</p>
+              </div>
+              <div>
+                <Label className="text-sm font-medium">Tenant Code</Label>
+                <p className="text-lg font-semibold">{userData?.tenant_code}</p>
+              </div>
+            </div>
+            <Alert variant="info" className="mt-4">
+              <InfoIcon className="h-4 w-4" />
+              <AlertTitle>Note</AlertTitle>
+              <AlertDescription>
+                Your room number and tenant code are automatically used when making requests. 
+                These details cannot be edited. Contact management if you need to update this information.
+              </AlertDescription>
+            </Alert>
+          </CardContent>
+        </Card>
 
         {/* Quick Stats */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">

@@ -20,6 +20,10 @@ interface MaintenanceRequestFormProps {
   userId: string;
   onSuccess?: () => void;
   onCancel?: () => void;
+  userData: {
+    room_number: string;
+    tenant_code: string;
+  };
 }
 
 interface FormData {
@@ -28,35 +32,48 @@ interface FormData {
   priority: 'low' | 'medium' | 'high';
   category: 'bedroom' | 'bathroom' | 'kitchen' | 'other';
   roomNumber: string;
+  tenantCode: string;
   preferredDate: string;
   timeSlot: string;
 }
 
-export function MaintenanceRequestForm({ userId, onSuccess, onCancel }: MaintenanceRequestFormProps) {
-  const { register, handleSubmit, formState: { errors }, setValue, watch } = useForm<FormData>();
-  const [isSubmitting, setIsSubmitting] = React.useState(false);
-
+export function MaintenanceRequestForm({ userId, onSuccess, onCancel, userData }: MaintenanceRequestFormProps) {
   // Generate time slots from 9:00 to 16:00
   const timeSlots = Array.from({ length: 8 }, (_, i) => {
     const hour = i + 9;
     return `${hour.toString().padStart(2, '0')}:00`;
   });
 
+  const { register, handleSubmit, formState: { errors }, setValue, watch } = useForm<FormData>({
+    defaultValues: {
+      roomNumber: userData.room_number,
+      tenantCode: userData.tenant_code,
+      priority: 'low',
+      timeSlot: timeSlots[0],
+      category: 'bedroom'
+    }
+  });
+  const [isSubmitting, setIsSubmitting] = React.useState(false);
+
   const onSubmit = async (data: FormData) => {
-    setIsSubmitting(true);
     try {
-      await createMaintenanceRequest({
+      const requestId = await createMaintenanceRequest({
         userId,
-        ...data,
-        status: 'pending'
+        title: data.title,
+        description: data.description,
+        priority: data.priority,
+        category: data.category,
+        roomNumber: data.roomNumber,
+        tenantCode: data.tenantCode,
+        preferredDate: data.preferredDate,
+        timeSlot: data.timeSlot
       });
+      
       toast.success('Maintenance request submitted successfully');
-      onSuccess?.();
+      onSuccess();
     } catch (error) {
       console.error('Error submitting maintenance request:', error);
       toast.error('Failed to submit maintenance request');
-    } finally {
-      setIsSubmitting(false);
     }
   };
 
@@ -66,12 +83,22 @@ export function MaintenanceRequestForm({ userId, onSuccess, onCancel }: Maintena
         <Label htmlFor="roomNumber">Room Number</Label>
         <Input
           id="roomNumber"
-          {...register('roomNumber', { required: 'Room number is required' })}
-          placeholder="Enter your room number"
+          {...register('roomNumber')}
+          defaultValue={userData.room_number}
+          readOnly
+          className="bg-gray-100"
         />
-        {errors.roomNumber && (
-          <p className="text-sm text-red-500">{errors.roomNumber.message}</p>
-        )}
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="tenantCode">Tenant Code</Label>
+        <Input
+          id="tenantCode"
+          {...register('tenantCode')}
+          defaultValue={userData.tenant_code}
+          readOnly
+          className="bg-gray-100"
+        />
       </div>
 
       <div className="space-y-2">
@@ -79,6 +106,7 @@ export function MaintenanceRequestForm({ userId, onSuccess, onCancel }: Maintena
         <Select
           onValueChange={(value) => setValue('category', value as FormData['category'])}
           defaultValue="bedroom"
+          {...register('category', { required: 'Category is required' })}
         >
           <SelectTrigger>
             <SelectValue placeholder="Select category" />
@@ -90,6 +118,9 @@ export function MaintenanceRequestForm({ userId, onSuccess, onCancel }: Maintena
             <SelectItem value="other">Other</SelectItem>
           </SelectContent>
         </Select>
+        {errors.category && (
+          <p className="text-sm text-red-500">{errors.category.message}</p>
+        )}
       </div>
 
       <div className="space-y-2">
@@ -135,6 +166,7 @@ export function MaintenanceRequestForm({ userId, onSuccess, onCancel }: Maintena
         <Select
           onValueChange={(value) => setValue('timeSlot', value)}
           defaultValue={timeSlots[0]}
+          {...register('timeSlot', { required: 'Time slot is required' })}
         >
           <SelectTrigger>
             <SelectValue placeholder="Select time slot" />
@@ -147,6 +179,9 @@ export function MaintenanceRequestForm({ userId, onSuccess, onCancel }: Maintena
             ))}
           </SelectContent>
         </Select>
+        {errors.timeSlot && (
+          <p className="text-sm text-red-500">{errors.timeSlot.message}</p>
+        )}
       </div>
 
       <div className="space-y-2">
@@ -154,6 +189,7 @@ export function MaintenanceRequestForm({ userId, onSuccess, onCancel }: Maintena
         <Select
           onValueChange={(value) => setValue('priority', value as 'low' | 'medium' | 'high')}
           defaultValue="low"
+          {...register('priority', { required: 'Priority is required' })}
         >
           <SelectTrigger>
             <SelectValue placeholder="Select priority" />
@@ -164,6 +200,9 @@ export function MaintenanceRequestForm({ userId, onSuccess, onCancel }: Maintena
             <SelectItem value="high">High</SelectItem>
           </SelectContent>
         </Select>
+        {errors.priority && (
+          <p className="text-sm text-red-500">{errors.priority.message}</p>
+        )}
       </div>
 
       <div className="bg-yellow-50 border border-yellow-200 rounded-md p-4 mt-4">

@@ -102,6 +102,14 @@ export default function ComplaintsPage() {
                         <p className="text-sm text-muted-foreground">
                           Submitted by {complaint.userName} on {format(complaint.createdAt, 'PPP')}
                         </p>
+                        <div className="flex gap-4 mt-2">
+                          <p className="text-sm">
+                            <span className="font-medium">Room:</span> {complaint.roomNumber}
+                          </p>
+                          <p className="text-sm">
+                            <span className="font-medium">Tenant Code:</span> {complaint.tenantCode}
+                          </p>
+                        </div>
                       </div>
                       <div className="flex items-center gap-2">
                         <Badge className={getStatusColor(complaint.status)}>
@@ -132,6 +140,14 @@ export default function ComplaintsPage() {
                           <p className="text-sm text-muted-foreground">
                             Submitted by {complaint.userName} on {format(complaint.createdAt, 'PPP')}
                           </p>
+                          <div className="flex gap-4 mt-2">
+                            <p className="text-sm">
+                              <span className="font-medium">Room:</span> {complaint.roomNumber}
+                            </p>
+                            <p className="text-sm">
+                              <span className="font-medium">Tenant Code:</span> {complaint.tenantCode}
+                            </p>
+                          </div>
                         </div>
                         <div className="flex items-center gap-2">
                           <Badge className={getStatusColor(complaint.status)}>
@@ -162,6 +178,14 @@ export default function ComplaintsPage() {
                           <p className="text-sm text-muted-foreground">
                             Submitted by {complaint.userName} on {format(complaint.createdAt, 'PPP')}
                           </p>
+                          <div className="flex gap-4 mt-2">
+                            <p className="text-sm">
+                              <span className="font-medium">Room:</span> {complaint.roomNumber}
+                            </p>
+                            <p className="text-sm">
+                              <span className="font-medium">Tenant Code:</span> {complaint.tenantCode}
+                            </p>
+                          </div>
                         </div>
                         <div className="flex items-center gap-2">
                           <Badge className={getStatusColor(complaint.status)}>
@@ -192,6 +216,14 @@ export default function ComplaintsPage() {
                           <p className="text-sm text-muted-foreground">
                             Submitted by {complaint.userName} on {format(complaint.createdAt, 'PPP')}
                           </p>
+                          <div className="flex gap-4 mt-2">
+                            <p className="text-sm">
+                              <span className="font-medium">Room:</span> {complaint.roomNumber}
+                            </p>
+                            <p className="text-sm">
+                              <span className="font-medium">Tenant Code:</span> {complaint.tenantCode}
+                            </p>
+                          </div>
                         </div>
                         <div className="flex items-center gap-2">
                           <Badge className={getStatusColor(complaint.status)}>
@@ -205,7 +237,7 @@ export default function ComplaintsPage() {
                             staffList={staffList}
                           />
                         </div>
-          </div>
+                      </div>
                     </CardContent>
                   </Card>
                 ))}

@@ -13,19 +13,35 @@ import Image from "next/image";
 interface SleepoverRequestFormProps {
   userId: string;
   onSuccess?: () => void;
+  onCancel?: () => void;
+  userData: {
+    room_number: string;
+    tenant_code: string;
+  };
 }
 
 interface FormData {
-  guestFirstName: string;
-  guestLastName: string;
-  guestPhone: string;
+  guestName: string;
+  guestSurname: string;
+  guestPhoneNumber: string;
   roomNumber: string;
+  tenantCode: string;
   startDate: string;
   endDate: string;
+  additionalGuests: Array<{
+    name: string;
+    surname: string;
+    phoneNumber: string;
+  }>;
 }
 
-export function SleepoverRequestForm({ userId, onSuccess }: SleepoverRequestFormProps) {
-  const { register, handleSubmit, formState: { errors }, watch, reset } = useForm<FormData>();
+export function SleepoverRequestForm({ userId, onSuccess, onCancel, userData }: SleepoverRequestFormProps) {
+  const { register, handleSubmit, formState: { errors }, setValue, watch } = useForm<FormData>({
+    defaultValues: {
+      roomNumber: userData.room_number,
+      tenantCode: userData.tenant_code
+    }
+  });
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   const [showConfirmation, setShowConfirmation] = React.useState(false);
   const [formData, setFormData] = React.useState<FormData | null>(null);
@@ -44,15 +60,12 @@ export function SleepoverRequestForm({ userId, onSuccess }: SleepoverRequestForm
     try {
       await createSleepoverRequest({
         userId,
-        guestName: `${formData.guestFirstName} ${formData.guestLastName}`,
-        guestPhone: formData.guestPhone,
-        roomNumber: formData.roomNumber,
+        ...formData,
         startDate: new Date(formData.startDate),
         endDate: new Date(formData.endDate),
         status: 'pending'
       });
       toast.success('Sleepover request submitted successfully');
-      reset();
       setShowConfirmation(false);
       onSuccess?.();
     } catch (error) {
@@ -68,59 +81,71 @@ export function SleepoverRequestForm({ userId, onSuccess }: SleepoverRequestForm
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
         <div className="grid grid-cols-2 gap-4">
           <div className="space-y-2">
-            <Label htmlFor="guestFirstName">Guest First Name</Label>
+            <Label htmlFor="guestName">Guest Name</Label>
             <Input
-              id="guestFirstName"
-              {...register('guestFirstName', { required: 'First name is required' })}
-              placeholder="First name"
+              id="guestName"
+              {...register('guestName', { required: 'Guest name is required' })}
+              placeholder="Guest name"
             />
-            {errors.guestFirstName && (
-              <p className="text-sm text-red-500">{errors.guestFirstName.message}</p>
+            {errors.guestName && (
+              <p className="text-sm text-red-500">{errors.guestName.message}</p>
             )}
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="guestLastName">Guest Last Name</Label>
+            <Label htmlFor="guestSurname">Guest Surname</Label>
             <Input
-              id="guestLastName"
-              {...register('guestLastName', { required: 'Last name is required' })}
-              placeholder="Last name"
+              id="guestSurname"
+              {...register('guestSurname', { required: 'Guest surname is required' })}
+              placeholder="Guest surname"
             />
-            {errors.guestLastName && (
-              <p className="text-sm text-red-500">{errors.guestLastName.message}</p>
+            {errors.guestSurname && (
+              <p className="text-sm text-red-500">{errors.guestSurname.message}</p>
             )}
           </div>
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="guestPhone">Guest Phone Number</Label>
+          <Label htmlFor="guestPhoneNumber">Guest Phone Number</Label>
           <Input
-            id="guestPhone"
+            id="guestPhoneNumber"
             type="tel"
-            {...register('guestPhone', { 
-              required: 'Phone number is required',
+            {...register('guestPhoneNumber', { 
+              required: 'Guest phone number is required',
               pattern: {
                 value: /^[0-9+\-\s()]*$/,
                 message: 'Invalid phone number'
               }
             })}
-            placeholder="Phone number"
+            placeholder="Guest phone number"
           />
-          {errors.guestPhone && (
-            <p className="text-sm text-red-500">{errors.guestPhone.message}</p>
+          {errors.guestPhoneNumber && (
+            <p className="text-sm text-red-500">{errors.guestPhoneNumber.message}</p>
           )}
         </div>
 
-        <div className="space-y-2">
-          <Label htmlFor="roomNumber">Room Number</Label>
-          <Input
-            id="roomNumber"
-            {...register('roomNumber', { required: 'Room number is required' })}
-            placeholder="Enter your room number"
-          />
-          {errors.roomNumber && (
-            <p className="text-sm text-red-500">{errors.roomNumber.message}</p>
-          )}
+        <div className="grid grid-cols-2 gap-4">
+          <div className="space-y-2">
+            <Label htmlFor="roomNumber">Room Number</Label>
+            <Input
+              id="roomNumber"
+              {...register('roomNumber')}
+              defaultValue={userData.room_number}
+              readOnly
+              className="bg-gray-100"
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="tenantCode">Tenant Code</Label>
+            <Input
+              id="tenantCode"
+              {...register('tenantCode')}
+              defaultValue={userData.tenant_code}
+              readOnly
+              className="bg-gray-100"
+            />
+          </div>
         </div>
 
         <div className="grid grid-cols-2 gap-4">
@@ -160,7 +185,7 @@ export function SleepoverRequestForm({ userId, onSuccess }: SleepoverRequestForm
         </div>
 
         <div className="flex justify-end space-x-2">
-          <Button type="button" variant="outline" onClick={() => reset()}>
+          <Button type="button" variant="outline" onClick={() => onCancel?.()}>
             Cancel
           </Button>
           <Button type="submit" disabled={isSubmitting}>
@@ -190,9 +215,10 @@ export function SleepoverRequestForm({ userId, onSuccess }: SleepoverRequestForm
               <div className="border-b pb-4">
                 <h3 className="font-semibold text-lg mb-3">Guest Information</h3>
                 <div className="space-y-2">
-                  <p><span className="font-semibold">Full Name:</span> {formData.guestFirstName} {formData.guestLastName}</p>
-                  <p><span className="font-semibold">Phone Number:</span> {formData.guestPhone}</p>
+                  <p><span className="font-semibold">Full Name:</span> {formData.guestName} {formData.guestSurname}</p>
+                  <p><span className="font-semibold">Phone Number:</span> {formData.guestPhoneNumber}</p>
                   <p><span className="font-semibold">Room Number:</span> {formData.roomNumber}</p>
+                  <p><span className="font-semibold">Tenant Code:</span> {formData.tenantCode}</p>
                   <p><span className="font-semibold">Duration:</span> {new Date(formData.startDate).toLocaleDateString()} - {new Date(formData.endDate).toLocaleDateString()}</p>
                 </div>
               </div>

@@ -108,6 +108,8 @@ export interface Complaint {
   createdAt: Timestamp | Date;
   updatedAt: Timestamp | Date;
   adminResponse?: string;
+  roomNumber: string;
+  tenantCode: string;
 }
 
 export interface SleepoverRequest {
@@ -728,31 +730,28 @@ export const createComplaint = async (complaint: Omit<Complaint, 'id' | 'created
   return docRef.id;
 };
 
-export const createSleepoverRequest = async (data: Omit<SleepoverRequest, 'id' | 'createdAt' | 'updatedAt' | 'status'>): Promise<string> => {
+export const createSleepoverRequest = async (data: {
+  userId: string;
+  guestName: string;
+  guestSurname: string;
+  guestEmail: string;
+  guestPhone: string;
+  relationship: string;
+  checkInDate: string;
+  checkOutDate: string;
+  roomNumber: string;
+  tenantCode: string;
+  status?: SleepoverStatus;
+}) => {
   try {
-    const securityCode = Math.floor(100000 + Math.random() * 900000).toString();
-    const now = Timestamp.now();
-
-    // Calculate duration of stay
-    const startDate = convertTimestampToDate(data.startDate);
-    const endDate = convertTimestampToDate(data.endDate);
-    const diffTime = Math.abs(endDate.getTime() - startDate.getTime());
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-    const durationOfStay = `${diffDays} ${diffDays === 1 ? 'day' : 'days'}`;
-
-    const requestData: Omit<SleepoverRequest, 'id'> = {
+    const sleepoverRef = collection(db, 'sleepover_requests');
+    const newRequest = {
       ...data,
-      status: 'pending',
-      createdAt: now,
-      updatedAt: now,
-      securityCode,
-      isActive: false,
-      startDate: convertDateToTimestamp(data.startDate),
-      endDate: convertDateToTimestamp(data.endDate),
-      durationOfStay
+      status: data.status || 'pending',
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp()
     };
-
-    const docRef = await addDoc(collection(db, 'sleepover_requests'), requestData);
+    const docRef = await addDoc(sleepoverRef, newRequest);
     return docRef.id;
   } catch (error) {
     console.error('Error creating sleepover request:', error);
@@ -760,45 +759,75 @@ export const createSleepoverRequest = async (data: Omit<SleepoverRequest, 'id' |
   }
 };
 
-export const createMaintenanceRequest = async (data: {
+export async function createMaintenanceRequest({
+  userId,
+  title,
+  description,
+  priority,
+  category,
+  roomNumber,
+  tenantCode,
+  preferredDate,
+  timeSlot
+}: {
   userId: string;
   title: string;
   description: string;
   priority: 'low' | 'medium' | 'high';
-  category?: 'bedroom' | 'bathroom' | 'kitchen' | 'furniture' | 'other';
-  roomNumber?: string;
-  timeSlot?: string;
-  preferredDate?: string;
-  status?: MaintenanceStatus;
-}) => {
-  try {
-    const maintenanceRef = collection(db, 'maintenance_requests');
-    const newRequest = {
-      ...data,
-      status: data.status || 'pending',
-      createdAt: serverTimestamp(),
-      updatedAt: serverTimestamp()
-    };
-    const docRef = await addDoc(maintenanceRef, newRequest);
+  category: string;
+  roomNumber: string;
+  tenantCode: string;
+  preferredDate: Date;
+  timeSlot: string;
+}): Promise<string> {
+  const maintenanceRef = collection(db, 'maintenance_requests');
+  const newRequest = {
+    userId,
+    title,
+    description,
+    priority,
+    category,
+    roomNumber,
+    tenantCode,
+    preferredDate,
+    timeSlot,
+    status: 'pending',
+    createdAt: serverTimestamp(),
+    updatedAt: serverTimestamp()
+  };
+  
+  const docRef = await addDoc(maintenanceRef, newRequest);
   return docRef.id;
-  } catch (error) {
-    console.error('Error creating maintenance request:', error);
-    throw error;
-  }
-};
+}
 
 export const getComplaints = async (userId: string, startDate: Date, endDate: Date): Promise<Complaint[]> => {
-  const complaints = await queryDataInDateRange<Complaint>(
-    'complaints',
-    startDate,
-    endDate,
-    'createdAt',
-    { userId }
-  )
-  return complaints.map((complaint: Complaint) => ({
-    ...complaint,
-    createdAt: convertTimestampToDate(complaint.createdAt as Timestamp | Date)
-  }))
+  try {
+    const complaintsRef = collection(db, 'complaints');
+    const q = query(
+      complaintsRef,
+      where('userId', '==', userId)
+    );
+    const querySnapshot = await getDocs(q);
+    
+    const complaints = querySnapshot.docs.map(doc => {
+      const data = doc.data();
+      return {
+        id: doc.id,
+        ...data,
+        createdAt: data.createdAt?.toDate() || new Date(),
+        updatedAt: data.updatedAt?.toDate() || new Date()
+      } as Complaint;
+    });
+
+    // Filter complaints by date range in memory
+    return complaints.filter(complaint => {
+      const complaintDate = complaint.createdAt;
+      return complaintDate >= startDate && complaintDate < endDate;
+    });
+  } catch (error) {
+    console.error('Error fetching complaints:', error);
+    throw error;
+  }
 };
 
 export const getSleepoverRequests = async () => {
@@ -959,11 +988,16 @@ export const updateComplaintStatus = async (
   adminResponse?: string
 ) => {
   const complaintRef = doc(db, 'complaints', complaintId)
-  await updateDoc(complaintRef, {
+  const updateData: any = {
     status,
-    adminResponse,
     updatedAt: Timestamp.now()
-  })
+  }
+  
+  if (adminResponse !== undefined) {
+    updateData.adminResponse = adminResponse
+  }
+  
+  await updateDoc(complaintRef, updateData)
 }
 
 export async function assignStaffToComplaint(complaintId: string, staffId: string) {

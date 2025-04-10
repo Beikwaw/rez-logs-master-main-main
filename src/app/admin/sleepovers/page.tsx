@@ -132,77 +132,64 @@ export default function AdminSleepoversPage() {
       
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {requests.map((request) => (
-          <div
-            key={request.id}
-            className="bg-white rounded-lg shadow-md p-6 space-y-4"
-          >
+          <div key={request.id} className="bg-white p-6 rounded-lg shadow">
             <div className="flex justify-between items-start">
               <div>
-                <h3 className="font-semibold text-lg">
+                <h2 className="text-xl font-semibold mb-2">
                   {request.guestName} {request.guestSurname}
-                </h3>
-                <p className="text-sm text-gray-600">
-                  Tenant Code: {request.tenantCode}
-                </p>
-                <p className="text-sm text-gray-600">
-                  Room: {request.roomNumber}
-                </p>
+                </h2>
+                <div className="grid grid-cols-2 gap-4 text-sm text-gray-600">
+                  <div>
+                    <p className="font-medium">Room Number</p>
+                    <p>{request.roomNumber}</p>
+                  </div>
+                  <div>
+                    <p className="font-medium">Tenant Code</p>
+                    <p>{request.tenantCode}</p>
+                  </div>
+                  <div>
+                    <p className="font-medium">Phone Number</p>
+                    <p>{request.guestPhone}</p>
+                  </div>
+                  <div>
+                    <p className="font-medium">Duration</p>
+                    <p>{format(request.startDate, 'PPP')} - {format(request.endDate, 'PPP')}</p>
+                  </div>
+                </div>
               </div>
-              <span className={`px-3 py-1 rounded-full text-sm font-medium ${
-                request.status === 'approved'
-                  ? 'bg-green-100 text-green-800'
-                  : request.status === 'rejected'
-                  ? 'bg-red-100 text-red-800'
-                  : 'bg-yellow-100 text-yellow-800'
-              }`}>
-                {request.status.charAt(0).toUpperCase() + request.status.slice(1)}
-              </span>
+              <div className="text-right">
+                <span className={`inline-block px-3 py-1 rounded-full text-sm font-medium ${
+                  request.status === 'approved'
+                    ? 'bg-green-100 text-green-800'
+                    : request.status === 'rejected'
+                    ? 'bg-red-100 text-red-800'
+                    : 'bg-yellow-100 text-yellow-800'
+                }`}>
+                  {request.status.charAt(0).toUpperCase() + request.status.slice(1)}
+                </span>
+              </div>
             </div>
-
-            <div className="space-y-2">
-              <p className="text-sm">
-                <span className="font-medium">Phone:</span> {request.guestPhone}
-              </p>
-              <p className="text-sm">
-                <span className="font-medium">Start Date:</span>{' '}
-                {format(request.startDate, 'MMM dd, yyyy')}
-              </p>
-              <p className="text-sm">
-                <span className="font-medium">End Date:</span>{' '}
-                {format(request.endDate, 'MMM dd, yyyy')}
-              </p>
-            </div>
-
-            {request.additionalGuests && request.additionalGuests.length > 0 && (
-              <div>
-                <h4 className="font-medium text-sm mb-2">Additional Guests:</h4>
-                <ul className="space-y-1">
-                  {request.additionalGuests.map((guest, index) => (
-                    <li key={index} className="text-sm">
-                      {guest.name} - {guest.phone}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
-
-            {request.status === 'pending' && (
-              <div className="flex gap-2 mt-4">
-                <button
-                  onClick={() => setSelectedRequest(request)}
-                  className="flex-1 bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700"
-                >
-                  Review
-                </button>
-              </div>
-            )}
-
             {request.adminResponse && (
-              <div className="mt-4 pt-4 border-t">
-                <p className="text-sm">
-                  <span className="font-medium">Admin Response:</span>{' '}
-                  {request.adminResponse}
+              <div className="mt-4 p-4 bg-gray-50 rounded">
+                <p className="text-sm text-gray-600">
+                  <span className="font-medium">Admin Response:</span> {request.adminResponse}
                 </p>
+              </div>
+            )}
+            {request.status === 'pending' && (
+              <div className="mt-4 flex justify-end gap-2">
+                <button
+                  onClick={() => handleReject(request.id)}
+                  className="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600"
+                >
+                  Reject
+                </button>
+                <button
+                  onClick={() => handleApprove(request.id)}
+                  className="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600"
+                >
+                  Approve
+                </button>
               </div>
             )}
           </div>

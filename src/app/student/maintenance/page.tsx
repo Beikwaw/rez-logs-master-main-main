@@ -21,10 +21,11 @@ interface MaintenanceRequest {
   preferredDate: string
   timeSlot: string
   adminComment?: string
+  tenantCode: string
 }
 
 export default function MaintenancePage() {
-  const { user } = useAuth()
+  const { user, userData } = useAuth()
   const [showForm, setShowForm] = useState(false)
   const [requests, setRequests] = useState<MaintenanceRequest[]>([])
   const [loading, setLoading] = useState(true)
@@ -53,7 +54,7 @@ export default function MaintenancePage() {
     fetchRequests()
   }
 
-  if (!user) {
+  if (!user || !userData) {
     return <div>Please log in to submit maintenance requests.</div>
   }
 
@@ -75,6 +76,10 @@ export default function MaintenancePage() {
           <CardContent>
             <MaintenanceRequestForm
               userId={user.uid}
+              userData={{
+                room_number: userData.room_number,
+                tenant_code: userData.tenant_code
+              }}
               onSuccess={handleSuccess}
               onCancel={() => setShowForm(false)}
             />
@@ -145,60 +150,62 @@ function RequestCard({ request }: { request: MaintenanceRequest }) {
   };
 
   return (
-    <Card>
-      <CardHeader className="pb-2">
-        <div className="flex justify-between items-start">
-          <div>
-            <CardTitle className="text-lg">{request.title}</CardTitle>
-            <p className="text-sm text-muted-foreground">
-              Submitted on {format(new Date(request.createdAt), 'PPP')}
-            </p>
-          </div>
-          <div className={`px-2 py-1 rounded-full text-sm ${
-            request.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
-            request.status === 'in_progress' ? 'bg-blue-100 text-blue-800' :
-            request.status === 'completed' ? 'bg-green-100 text-green-800' :
-            'bg-gray-100 text-gray-800'
-          }`}>
-            {(request.status || 'pending').charAt(0).toUpperCase() + (request.status || 'pending').slice(1).replace('_', ' ')}
-          </div>
-        </div>
-      </CardHeader>
-      <CardContent>
-        <div className="space-y-2">
-          <div className="grid grid-cols-2 gap-2 text-sm">
+    <div key={request.id} className="bg-white p-6 rounded-lg shadow">
+      <div className="flex justify-between items-start">
+        <div>
+          <h2 className="text-xl font-semibold mb-2">{request.title}</h2>
+          <div className="grid grid-cols-2 gap-4 text-sm text-gray-600">
             <div>
-              <span className="font-medium">Room:</span> {request.roomNumber || 'Not specified'}
+              <p className="font-medium">Room Number</p>
+              <p>{request.roomNumber}</p>
             </div>
             <div>
-              <span className="font-medium">Category:</span> {formatCategory(request.category)}
+              <p className="font-medium">Tenant Code</p>
+              <p>{request.tenantCode}</p>
             </div>
             <div>
-              <span className="font-medium">Priority:</span>{' '}
-              <span className={
-                request.priority === 'high' ? 'text-red-600' :
-                request.priority === 'medium' ? 'text-yellow-600' :
-                'text-green-600'
-              }>
+              <p className="font-medium">Category</p>
+              <p>{request.category}</p>
+            </div>
+            <div>
+              <p className="font-medium">Priority</p>
+              <p className={`text-sm font-medium ${
+                request.priority === 'high'
+                  ? 'text-red-600'
+                  : request.priority === 'medium'
+                  ? 'text-yellow-600'
+                  : 'text-green-600'
+              }`}>
                 {(request.priority || 'low').charAt(0).toUpperCase() + (request.priority || 'low').slice(1)}
-              </span>
-            </div>
-            <div>
-              <span className="font-medium">Preferred Time:</span>{' '}
-              {formatDate(request.preferredDate)} {request.timeSlot ? `at ${request.timeSlot}` : ''}
+              </p>
             </div>
           </div>
-          
-          <p className="text-sm mt-2">{request.description}</p>
-          
-          {request.adminComment && (
-            <div className="mt-2 p-2 bg-gray-50 rounded-md">
-              <p className="text-sm font-medium">Staff Response:</p>
-              <p className="text-sm">{request.adminComment}</p>
-            </div>
-          )}
+          <div className="mt-4">
+            <h3 className="font-medium mb-2">Description</h3>
+            <p className="text-gray-600">{request.description}</p>
+          </div>
         </div>
-      </CardContent>
-    </Card>
+        <div className="text-right">
+          <span className={`inline-block px-3 py-1 rounded-full text-sm font-medium ${
+            request.status === 'completed'
+              ? 'bg-green-100 text-green-800'
+              : request.status === 'in_progress'
+              ? 'bg-blue-100 text-blue-800'
+              : 'bg-yellow-100 text-yellow-800'
+          }`}>
+            {request.status.split('_').map(word => 
+              word.charAt(0).toUpperCase() + word.slice(1)
+            ).join(' ')}
+          </span>
+        </div>
+      </div>
+      {request.adminComment && (
+        <div className="mt-4 p-4 bg-gray-50 rounded">
+          <p className="text-sm text-gray-600">
+            <span className="font-medium">Admin Response:</span> {request.adminComment}
+          </p>
+        </div>
+      )}
+    </div>
   );
 } 

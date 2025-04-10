@@ -8,8 +8,6 @@ import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import Link from 'next/link';
-import { NotificationsDropdown } from '@/components/NotificationsDropdown';
-import { ChatDialog } from '@/components/ChatDialog';
 import { ApplicantDetails } from '@/components/ApplicantDetails';
 import BG from '@/assets/user-bg.jpg'
 import { getAnnouncements } from '@/lib/firestore';
@@ -143,8 +141,6 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
                 <span className="font-bold text-xl">My Domain Student Living</span>
               </div>
               <div className="flex items-center space-x-4">
-                <NotificationsDropdown />
-                <ChatDialog />
                 <Separator orientation="vertical" className="h-8" />
                 <Avatar onClick={toggleApplicantDetails}>
                   <AvatarImage src={user?.photoURL || undefined} />

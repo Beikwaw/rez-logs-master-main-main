@@ -17,6 +17,8 @@ const complaintSchema = z.object({
   title: z.string().min(1, 'Title is required'),
   description: z.string().min(10, 'Description must be at least 10 characters'),
   location: z.string().optional(),
+  roomNumber: z.string(),
+  tenantCode: z.string()
 });
 
 type ComplaintFormData = z.infer<typeof complaintSchema>;
@@ -24,9 +26,13 @@ type ComplaintFormData = z.infer<typeof complaintSchema>;
 interface ComplaintFormProps {
   userId: string;
   onSuccess?: () => void;
+  userData: {
+    room_number: string;
+    tenant_code: string;
+  };
 }
 
-export function ComplaintForm({ userId, onSuccess }: ComplaintFormProps) {
+export function ComplaintForm({ userId, onSuccess, userData }: ComplaintFormProps) {
   const [isSubmitting, setIsSubmitting] = React.useState(false);
 
   const form = useForm<ComplaintFormData>({
@@ -36,6 +42,8 @@ export function ComplaintForm({ userId, onSuccess }: ComplaintFormProps) {
       title: '',
       description: '',
       location: '',
+      roomNumber: userData.room_number,
+      tenantCode: userData.tenant_code
     },
   });
 
@@ -60,6 +68,30 @@ export function ComplaintForm({ userId, onSuccess }: ComplaintFormProps) {
 
   return (
     <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+      <div className="grid grid-cols-2 gap-4">
+        <div className="space-y-2">
+          <Label htmlFor="roomNumber">Room Number</Label>
+          <Input
+            id="roomNumber"
+            {...form.register('roomNumber')}
+            defaultValue={userData.room_number}
+            readOnly
+            className="bg-gray-100"
+          />
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="tenantCode">Tenant Code</Label>
+          <Input
+            id="tenantCode"
+            {...form.register('tenantCode')}
+            defaultValue={userData.tenant_code}
+            readOnly
+            className="bg-gray-100"
+          />
+        </div>
+      </div>
+
       <div className="space-y-2">
         <Label htmlFor="category">Category</Label>
         <Select

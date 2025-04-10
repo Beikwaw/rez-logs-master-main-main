@@ -9,13 +9,13 @@ import { getMySleepoverRequests, SleepoverRequest } from '@/lib/firestore';
 import { Loader2 } from 'lucide-react';
 
 export default function StudentSleepoverPage() {
-  const { user } = useAuth();
+  const { user, userData } = useAuth();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [requests, setRequests] = useState<SleepoverRequest[]>([]);
   const [formData, setFormData] = useState({
-    tenantCode: '',
-    roomNumber: '',
+    tenantCode: userData?.tenant_code || '',
+    roomNumber: userData?.room_number || '',
     guestName: '',
     guestSurname: '',
     guestPhoneNumber: '',
@@ -25,10 +25,20 @@ export default function StudentSleepoverPage() {
   });
 
   useEffect(() => {
-    if (user) {
+    if (user && userData) {
       fetchRequests();
     }
-  }, [user]);
+  }, [user, userData]);
+
+  useEffect(() => {
+    if (userData) {
+      setFormData(prev => ({
+        ...prev,
+        tenantCode: userData.tenant_code,
+        roomNumber: userData.room_number
+      }));
+    }
+  }, [userData]);
 
   const fetchRequests = async () => {
     if (!user) return;
@@ -85,14 +95,14 @@ export default function StudentSleepoverPage() {
     setError(null);
 
     try {
-      if (!user) {
+      if (!user || !userData) {
         throw new Error('You must be logged in to submit a sleepover request');
       }
 
       const sleepoverData = {
         userId: user.uid,
-        tenantCode: formData.tenantCode,
-        roomNumber: formData.roomNumber,
+        tenantCode: userData.tenant_code,
+        roomNumber: userData.room_number,
         guestName: formData.guestName,
         guestSurname: formData.guestSurname,
         guestPhoneNumber: formData.guestPhoneNumber,
@@ -106,8 +116,8 @@ export default function StudentSleepoverPage() {
       await addDoc(collection(db, 'sleepover'), sleepoverData);
       toast.success('Sleepover request submitted successfully');
       setFormData({
-        tenantCode: '',
-        roomNumber: '',
+        tenantCode: userData.tenant_code,
+        roomNumber: userData.room_number,
         guestName: '',
         guestSurname: '',
         guestPhoneNumber: '',
@@ -148,7 +158,7 @@ export default function StudentSleepoverPage() {
     }));
   };
 
-  if (!user) {
+  if (!user || !userData) {
     return (
       <div className="container mx-auto px-4 py-8">
         <div className="text-center">
@@ -194,26 +204,21 @@ export default function StudentSleepoverPage() {
           <form onSubmit={handleSubmit} className="space-y-6">
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium mb-1">Tenant Code</label>
-                <input
-                  type="text"
-                  required
-                  value={formData.tenantCode}
-                  onChange={(e) => setFormData(prev => ({ ...prev, tenantCode: e.target.value }))}
-                  className="w-full p-2 border rounded"
-                  placeholder="Enter your tenant code"
-                />
-              </div>
-
-              <div>
                 <label className="block text-sm font-medium mb-1">Room Number</label>
                 <input
                   type="text"
-                  required
-                  value={formData.roomNumber}
-                  onChange={(e) => setFormData(prev => ({ ...prev, roomNumber: e.target.value }))}
-                  className="w-full p-2 border rounded"
-                  placeholder="Enter your room number"
+                  value={userData.room_number}
+                  readOnly
+                  className="w-full p-2 border rounded-md bg-gray-100"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">Tenant Code</label>
+                <input
+                  type="text"
+                  value={userData.tenant_code}
+                  readOnly
+                  className="w-full p-2 border rounded-md bg-gray-100"
                 />
               </div>
 

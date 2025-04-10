@@ -5,8 +5,6 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
-import { NotificationsDropdown } from './NotificationsDropdown';
-import { ChatDialog } from './ChatDialog';
 
 const links = [
   { href: '/student', label: 'Dashboard' },
@@ -36,10 +34,6 @@ export function StudentNav() {
           {link.label}
         </Link>
       ))}
-      <div className="flex items-center space-x-2 ml-auto">
-        <NotificationsDropdown />
-        <ChatDialog />
-      </div>
     </nav>
   );
 } 

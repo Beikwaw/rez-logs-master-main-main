@@ -12,6 +12,10 @@ interface GuestRegistrationFormProps {
   userId: string;
   onSuccess?: () => void;
   onCancel?: () => void;
+  userData: {
+    room_number: string;
+    tenant_code: string;
+  };
 }
 
 interface FormData {
@@ -20,21 +24,28 @@ interface FormData {
   visitDate: string;
   visitTime: string;
   purpose: string;
+  roomNumber: string;
+  tenantCode: string;
 }
 
-export function GuestRegistrationForm({ userId, onSuccess, onCancel }: GuestRegistrationFormProps) {
+export function GuestRegistrationForm({ userId, onSuccess, onCancel, userData }: GuestRegistrationFormProps) {
   const {
     register,
     handleSubmit,
     formState: { errors, isSubmitting },
-  } = useForm<FormData>();
+  } = useForm<FormData>({
+    defaultValues: {
+      roomNumber: userData.room_number,
+      tenantCode: userData.tenant_code
+    }
+  });
 
   const onSubmit = async (data: FormData) => {
     try {
       await createGuestRegistration({
-        ...data,
         userId,
-        status: 'pending',
+        ...data,
+        status: 'pending'
       });
       toast.success('Guest registration submitted successfully');
       onSuccess?.();
@@ -46,6 +57,28 @@ export function GuestRegistrationForm({ userId, onSuccess, onCancel }: GuestRegi
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+      <div className="space-y-2">
+        <Label htmlFor="roomNumber">Room Number</Label>
+        <Input
+          id="roomNumber"
+          {...register('roomNumber')}
+          value={userData.room_number}
+          readOnly
+          className="bg-gray-100"
+        />
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="tenantCode">Tenant Code</Label>
+        <Input
+          id="tenantCode"
+          {...register('tenantCode')}
+          value={userData.tenant_code}
+          readOnly
+          className="bg-gray-100"
+        />
+      </div>
+
       <div className="space-y-2">
         <Label htmlFor="guestName">Guest Name</Label>
         <Input

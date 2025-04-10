@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/button";
 import { TriangleAlert } from 'lucide-react';
 import { ComplaintForm } from '@/components/forms/ComplaintForm';
-import { useAuth } from '@/context/AuthContext';
+import { useAuth } from '@/lib/auth';
 import { getComplaints, type Complaint } from '@/lib/firestore';
 import { Badge } from '@/components/ui/badge';
 import { format } from 'date-fns';
@@ -23,10 +23,12 @@ interface FormData {
   title: string;
   description: string;
   location: string;
+  roomNumber: string;
+  tenantCode: string;
 }
 
 export default function ComplaintsPage() {
-  const { user } = useAuth();
+  const { user, userData } = useAuth();
   const [showForm, setShowForm] = useState(false);
   const [complaints, setComplaints] = useState<Complaint[]>([]);
   const [loading, setLoading] = useState(true);
@@ -35,6 +37,8 @@ export default function ComplaintsPage() {
     title: '',
     description: '',
     location: '',
+    roomNumber: userData?.room_number || '',
+    tenantCode: userData?.tenant_code || ''
   });
   const [showThankYou, setShowThankYou] = useState(false);
 
@@ -72,6 +76,8 @@ export default function ComplaintsPage() {
         description: formData.description,
         category: formData.category,
         location: formData.location,
+        roomNumber: userData?.room_number || '',
+        tenantCode: userData?.tenant_code || '',
         status: 'pending'
       });
       setShowThankYou(true);
@@ -79,7 +85,9 @@ export default function ComplaintsPage() {
         category: 'maintenance',
         title: '',
         description: '',
-        location: ''
+        location: '',
+        roomNumber: userData?.room_number || '',
+        tenantCode: userData?.tenant_code || ''
       });
       fetchComplaints();
     } catch (error) {
@@ -113,6 +121,28 @@ export default function ComplaintsPage() {
               </CardHeader>
               <CardContent>
                 <form onSubmit={handleSubmit} className="space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="roomNumber">Room Number</Label>
+                      <Input
+                        id="roomNumber"
+                        value={userData?.room_number || ''}
+                        readOnly
+                        className="bg-gray-100"
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="tenantCode">Tenant Code</Label>
+                      <Input
+                        id="tenantCode"
+                        value={userData?.tenant_code || ''}
+                        readOnly
+                        className="bg-gray-100"
+                      />
+                    </div>
+                  </div>
+
                   <div className="space-y-2">
                     <Label htmlFor="category">Category</Label>
                     <Select value={formData.category} onValueChange={(value) => setFormData({ ...formData, category: value as Complaint['category'] })}>
