@@ -243,7 +243,7 @@ export default function ComplaintsPage() {
                       </Badge>
                     </div>
                     <div className="text-sm text-muted-foreground">
-                      {format(complaint.createdAt, 'MMM d, yyyy')}
+                      {format(complaint.createdAt.toDate(), 'MMM d, yyyy')}
                     </div>
                   </div>
                 ))}
