@@ -66,7 +66,8 @@ export default function AnnouncementsPage() {
         createdAt: new Date(),
         userId: user?.uid || '',
         createdBy: user?.uid || '',
-        createdByName: userData?.name || 'Admin'
+        createdByName: userData?.name || 'Admin',
+        status: 'active'
       };
 
       await createAnnouncement(newAnnouncement);
