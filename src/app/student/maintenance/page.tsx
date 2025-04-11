@@ -6,7 +6,8 @@ import { MaintenanceRequestForm } from "@/components/forms/MaintenanceRequestFor
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Plus } from "lucide-react"
-import { getUserMaintenanceRequests, MaintenanceStatus, Timestamp } from "@/lib/firestore"
+import { getUserMaintenanceRequests, MaintenanceStatus } from "@/lib/firestore"
+import { Timestamp } from "firebase/firestore"
 import { format } from "date-fns"
 
 interface MaintenanceRequest {
