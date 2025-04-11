@@ -1302,7 +1302,7 @@ export async function getMyGuestRequests(userId:string){
   }));
 }
 
-export async function getMyMaintenanceRequests(userId: string) {
+export async function getUserMaintenanceRequests(userId: string): Promise<MaintenanceRequest[]> {
   try {
     const maintenanceRef = collection(db, 'maintenance_requests')
     const q = query(
@@ -1311,10 +1311,22 @@ export async function getMyMaintenanceRequests(userId: string) {
       orderBy('createdAt', 'desc')
     )
     const querySnapshot = await getDocs(q)
-  return querySnapshot.docs.map(doc => ({
-    id: doc.id,
-    ...doc.data(),
-      createdAt: convertTimestampToDate(doc.data().createdAt as Timestamp | Date)
+    return querySnapshot.docs.map(doc => ({
+      id: doc.id,
+      userId: doc.data().userId,
+      title: doc.data().title,
+      description: doc.data().description,
+      category: doc.data().category,
+      roomNumber: doc.data().roomNumber,
+      timeSlot: doc.data().timeSlot,
+      preferredDate: doc.data().preferredDate,
+      priority: doc.data().priority,
+      status: doc.data().status,
+      createdAt: convertTimestampToDate(doc.data().createdAt as Timestamp | Date),
+      updatedAt: convertTimestampToDate(doc.data().updatedAt as Timestamp | Date),
+      adminResponse: doc.data().adminResponse,
+      tenantCode: doc.data().tenantCode,
+      images: doc.data().images
     }))
   } catch (error) {
     console.error('Error getting user maintenance requests:', error)
@@ -1842,26 +1854,6 @@ export async function updateGuestCheckout(guestId: string) {
   } catch (error) {
     console.error('Error updating guest checkout:', error);
     throw error;
-  }
-}
-
-export async function getUserMaintenanceRequests(userId: string) {
-  try {
-    const maintenanceRef = collection(db, 'maintenance_requests')
-    const q = query(
-      maintenanceRef,
-      where('userId', '==', userId),
-      orderBy('createdAt', 'desc')
-    )
-    const querySnapshot = await getDocs(q)
-    return querySnapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data(),
-      createdAt: convertTimestampToDate(doc.data().createdAt as Timestamp | Date)
-    }))
-  } catch (error) {
-    console.error('Error getting user maintenance requests:', error)
-    throw error
   }
 }
 
