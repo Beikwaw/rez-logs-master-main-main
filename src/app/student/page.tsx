@@ -15,7 +15,7 @@ import {
   UserPlus,
   InfoIcon
 } from 'lucide-react';
-import { getMyComplaints, getMyGuestRequests, getMySleepoverRequests, getMyMaintenanceRequests, getAnnouncements } from '@/lib/firestore';
+import { getMyComplaints, getMyGuestRequests, getMySleepoverRequests, getUserMaintenanceRequests, getAnnouncements } from '@/lib/firestore';
 import { AnnouncementPopup } from "@/components/AnnouncementPopup";
 import { format } from 'date-fns';
 import { useRouter } from 'next/navigation';
@@ -70,7 +70,7 @@ export default function DashboardPage() {
         getMySleepoverRequests(userData.id).then(sleepoverRequests => {
           setMySleepoverRequestsCount(sleepoverRequests.length);
         });
-        getMyMaintenanceRequests(userData.id).then(maintenanceRequests => {
+        getUserMaintenanceRequests(userData.id).then(maintenanceRequests => {
           setMyMaintenanceRequestsCount(maintenanceRequests.length);
         });
       }
