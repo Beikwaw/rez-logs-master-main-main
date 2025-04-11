@@ -262,7 +262,7 @@ export interface Announcement {
   createdAt: Date;
   expiresAt?: Date;
   isFirstTimeShown?: boolean;
-  priority?: 'low' | 'medium' | 'high';
+  priority: 'low' | 'medium' | 'high';
   createdBy: string;
   createdByName: string;
   status: 'active' | 'archived';
