@@ -12,17 +12,20 @@ import { format } from "date-fns"
 
 interface MaintenanceRequest {
   id: string
+  userId: string
   title: string
   description: string
+  category?: 'bedroom' | 'bathroom' | 'kitchen' | 'furniture' | 'other'
+  roomNumber?: string
+  timeSlot?: string
+  preferredDate?: string
   priority: 'low' | 'medium' | 'high'
   status: MaintenanceStatus
   createdAt: Timestamp | Date
-  category: 'bedroom' | 'bathroom' | 'kitchen' | 'other'
-  roomNumber: string
-  preferredDate: string
-  timeSlot: string
-  adminComment?: string
-  tenantCode: string
+  updatedAt: Timestamp | Date
+  adminResponse?: string
+  tenantCode?: string
+  images?: string[]
 }
 
 export default function MaintenancePage() {
@@ -200,10 +203,10 @@ function RequestCard({ request }: { request: MaintenanceRequest }) {
           </span>
         </div>
       </div>
-      {request.adminComment && (
+      {request.adminResponse && (
         <div className="mt-4 p-4 bg-gray-50 rounded">
           <p className="text-sm text-gray-600">
-            <span className="font-medium">Admin Response:</span> {request.adminComment}
+            <span className="font-medium">Admin Response:</span> {request.adminResponse}
           </p>
         </div>
       )}
