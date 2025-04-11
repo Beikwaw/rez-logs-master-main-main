@@ -162,10 +162,10 @@ export default function DashboardPage() {
                 <p className="text-lg font-semibold">{userData?.tenant_code}</p>
               </div>
             </div>
-            <Alert variant="info" className="mt-4">
-              <InfoIcon className="h-4 w-4" />
-              <AlertTitle>Note</AlertTitle>
-              <AlertDescription>
+            <Alert variant="default" className="mt-4 bg-blue-50 border-blue-200">
+              <InfoIcon className="h-4 w-4 text-blue-600" />
+              <AlertTitle className="text-blue-800">Note</AlertTitle>
+              <AlertDescription className="text-blue-700">
                 Your room number and tenant code are automatically used when making requests. 
                 These details cannot be edited. Contact management if you need to update this information.
               </AlertDescription>
