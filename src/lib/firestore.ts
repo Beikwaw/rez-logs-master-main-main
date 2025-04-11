@@ -255,16 +255,17 @@ export interface DetailedReport {
 }
 
 export interface Announcement {
-  id: string
-  title: string
-  content: string
-  userId: string
-  createdAt: Date
-  expiresAt?: Date
-  isFirstTimeShown?: boolean
-  priority?: 'low' | 'medium' | 'high'
-  createdBy?: string
-  createdByName?: string
+  id: string;
+  title: string;
+  content: string;
+  userId: string;
+  createdAt: Date;
+  expiresAt?: Date;
+  isFirstTimeShown?: boolean;
+  priority?: 'low' | 'medium' | 'high';
+  createdBy?: string;
+  createdByName?: string;
+  status: 'active' | 'archived';
 }
 
 export interface GuestRequest {
