@@ -2139,3 +2139,49 @@ export const getAllManagementRequests = async (): Promise<ManagementRequest[]> =
     throw error;
   }
 };
+
+export async function getAllStudents(): Promise<{
+  id: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+  status: 'active' | 'inactive';
+  room_number: string;
+  tenant_code: string;
+  phoneNumber: string;
+  placeOfStudy: string;
+}[]> {
+  try {
+    const usersRef = collection(db, USERS_COLLECTION);
+    const q = query(usersRef, where('role', '==', 'student'));
+    const querySnapshot = await getDocs(q);
+    
+    return querySnapshot.docs.map(doc => ({
+      id: doc.id,
+      firstName: doc.data().name || '',
+      lastName: doc.data().surname || '',
+      email: doc.data().email || '',
+      status: 'active' as const,
+      room_number: doc.data().room_number || '',
+      tenant_code: doc.data().tenant_code || '',
+      phoneNumber: doc.data().phone || '',
+      placeOfStudy: doc.data().place_of_study || ''
+    }));
+  } catch (error) {
+    console.error('Error getting students:', error);
+    throw error;
+  }
+}
+
+export async function deactivateStudent(studentId: string) {
+  try {
+    const studentRef = doc(db, USERS_COLLECTION, studentId);
+    await updateDoc(studentRef, {
+      status: 'inactive',
+      updatedAt: new Date()
+    });
+  } catch (error) {
+    console.error('Error deactivating student:', error);
+    throw error;
+  }
+}

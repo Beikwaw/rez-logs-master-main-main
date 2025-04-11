@@ -78,7 +78,7 @@ export default function StudentsPage() {
                 <CardTitle>{student.firstName} {student.lastName}</CardTitle>
                 <CardDescription>{student.email}</CardDescription>
               </div>
-              <Badge variant={student.status === 'active' ? 'success' : 'secondary'}>
+              <Badge variant={student.status === 'active' ? 'default' : 'secondary'}>
                 {student.status}
               </Badge>
             </div>
