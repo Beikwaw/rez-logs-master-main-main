@@ -6,7 +6,9 @@ const nextConfig = {
     domains: ['firebasestorage.googleapis.com'],
   },
   experimental: {
-    serverActions: true,
+    serverActions: {
+      allowedOrigins: ['localhost:3000', '*.netlify.app'],
+    },
   },
   env: {
     NEXT_PUBLIC_FIREBASE_API_KEY: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,

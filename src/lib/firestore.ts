@@ -297,6 +297,21 @@ export interface ManagementRequest {
   adminResponse?: string;
 }
 
+export interface GuestData {
+  id: string;
+  userId: string;
+  firstName: string;
+  lastName: string;
+  phoneNumber: string;
+  roomNumber: string;
+  purpose: string;
+  fromDate: string;
+  status: 'active' | 'checked_out';
+  tenantCode: string;
+  createdAt: Date;
+  checkoutTime?: Date;
+}
+
 // Helper function to convert Timestamp to Date
 const convertTimestampToDate = (timestamp: Timestamp | Date | undefined): Date => {
   if (!timestamp) return new Date();
